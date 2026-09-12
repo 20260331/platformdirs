@@ -64,7 +64,7 @@
         <tr><td>1</td><td class="fail">未通过</td><td>四类搜索入口存在且默认用户优先，但没有站点优先或顺序选择接口。</td></tr>
         <tr><td>2</td><td class="fail">未通过</td><td>multipath=False/True 返回相同完整站点列表；相对项进入结果；/site 与 /site/. 未按同一目录去重。</td></tr>
         <tr><td>3</td><td class="fail">未通过</td><td>existing_only 基础筛选和权限异常传播有效，但 ensure_exists=True 会先创建缺失候选，再把它们全部返回。</td></tr>
-        <tr><td>4</td><td class="pass">通过</td><td>应用标识、版本、roaming、opinion、use_site_for_root 与 Android 特殊目录的基础平台测试通过。</td></tr>
+        <tr><td>4</td><td class="fail">未通过</td><td>平台实例的参数与 Android 特殊目录基础测试通过，但模块级 search_* 函数未暴露 ensure_exists。</td></tr>
         <tr><td>5</td><td class="pass">通过</td><td>每次返回独立 list；调用方修改不污染后续调用；环境变化可立即反映。</td></tr>
         <tr><td>6</td><td class="pass">通过</td><td>独立函数与实例方法基础行为一致；清理宿主 XDG 环境后完整测试无回归。</td></tr>
       </tbody>
