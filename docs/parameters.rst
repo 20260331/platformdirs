@@ -49,6 +49,10 @@ class.
       - ``bool``
       - ``False``
       - Unix
+    - - ``safe_paths``
+      - ``bool``
+      - ``False``
+      - All
 
 *********
  Details
@@ -219,6 +223,54 @@ is useful for system services running as root that should use system-wide direct
 **Default**: ``False``
 
 **Platform**: Unix only
+
+``safe_paths``
+==============
+
+Validate and normalize ``appname``, ``appauthor`` and ``version`` as single, safe path segments. Enable this when an
+identifier comes from a configuration file, environment variable or user input rather than a hard-coded literal. It
+defaults to ``False`` so existing callers keep their current behavior.
+
+When enabled, leading and trailing whitespace is stripped from each identifier, and a value that could escape the
+platform base directory or resolve differently on different operating systems raises
+:class:`platformdirs.UnsafePathError` (a subclass of :class:`ValueError`) at construction time:
+
+- empty or whitespace-only values;
+- path separators (``/`` and ``\\``), so an identifier can never address a parent directory or an absolute path;
+- the dot directories ``.`` and ``..``;
+- Windows reserved device names (``CON``, ``PRN``, ``AUX``, ``NUL``, ``COM0``-``COM9``, ``LPT0``-``LPT9``),
+  regardless of case or extension (e.g. ``nul.txt``);
+- characters that are illegal in Windows names (``<``, ``>``, ``:``, ``"``, ``|``, ``?``, ``*``) and ASCII control
+  characters;
+- a trailing dot, which Windows silently removes from directory names.
+
+The same rules are applied on every platform, so an accepted identifier produces the same directory structure on
+Unix, macOS and Windows. ``None`` and ``appauthor=False`` keep their usual meaning.
+
+.. code-block:: pycon
+
+    >>> from platformdirs import PlatformDirs
+    >>> dirs = PlatformDirs("  SuperApp  ", version=" 1.0 ", safe_paths=True)
+    >>> dirs.appname
+    'SuperApp'
+    >>> PlatformDirs("../SuperApp", safe_paths=True)
+    Traceback (most recent call last):
+        ...
+    platformdirs.UnsafePathError: appname must be a single path segment and cannot contain '/' or '\\' when ...
+
+The option is keyword-only on the module-level functions:
+
+.. code-block:: python
+
+    from platformdirs import user_data_dir
+
+    user_data_dir(config_name, safe_paths=True)  # raises UnsafePathError for unsafe config_name
+
+**Type**: ``bool``
+
+**Default**: ``False``
+
+**Platform**: all
 
 .. _xdg-env-vars:
 

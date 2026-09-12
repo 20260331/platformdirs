@@ -13,7 +13,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from .api import PlatformDirsABC
+from .api import PlatformDirsABC, UnsafePathError
 from .version import __version__
 from .version import __version_tuple__ as __version_info__
 
@@ -59,6 +59,8 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -66,6 +68,7 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: data directory tied to the user
 
@@ -77,21 +80,25 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_data_dir
 
 
-def site_data_dir(
+def site_data_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: data directory shared by users
 
@@ -102,6 +109,7 @@ def site_data_dir(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_data_dir
 
 
@@ -112,6 +120,8 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -119,6 +129,7 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: config directory tied to the user
 
@@ -130,21 +141,25 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_config_dir
 
 
-def site_config_dir(
+def site_config_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: config directory shared by users
 
@@ -155,6 +170,7 @@ def site_config_dir(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_config_dir
 
 
@@ -165,6 +181,8 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -172,6 +190,7 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: cache directory tied to the user
 
@@ -183,21 +202,25 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_cache_dir
 
 
-def site_cache_dir(
+def site_cache_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: cache directory shared by users
 
@@ -208,6 +231,7 @@ def site_cache_dir(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_cache_dir
 
 
@@ -218,6 +242,8 @@ def user_state_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -225,6 +251,7 @@ def user_state_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: state directory tied to the user
 
@@ -236,6 +263,7 @@ def user_state_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_state_dir
 
 
@@ -244,11 +272,14 @@ def site_state_dir(
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: state directory shared by users
 
@@ -258,6 +289,7 @@ def site_state_dir(
         appauthor=appauthor,
         version=version,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_state_dir
 
 
@@ -268,6 +300,8 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -275,6 +309,7 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: log directory tied to the user
 
@@ -286,21 +321,25 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_log_dir
 
 
-def site_log_dir(
+def site_log_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: log directory shared by users
 
@@ -311,6 +350,7 @@ def site_log_dir(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_log_dir
 
 
@@ -372,6 +412,7 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
     roaming: bool = False,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -379,6 +420,7 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: preference directory tied to the user
 
@@ -390,6 +432,7 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_preference_dir
 
 
@@ -407,19 +450,21 @@ def site_bin_dir() -> str:
     return PlatformDirs().site_bin_dir
 
 
-def user_applications_dir(
+def user_applications_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: applications directory tied to the user
 
@@ -430,22 +475,25 @@ def user_applications_dir(
         version=version,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_applications_dir
 
 
-def site_applications_dir(
+def site_applications_dir(  # ruff:ignore[too-many-arguments]
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     *,
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
+    safe_paths: bool = False,
 ) -> str:
     """:param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: applications directory shared by users
 
@@ -456,6 +504,7 @@ def site_applications_dir(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_applications_dir
 
 
@@ -466,6 +515,8 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -473,6 +524,7 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: runtime directory tied to the user
 
@@ -484,21 +536,25 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_runtime_dir
 
 
-def site_runtime_dir(
+def site_runtime_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: runtime directory shared by users
 
@@ -509,6 +565,7 @@ def site_runtime_dir(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_runtime_dir
 
 
@@ -519,6 +576,8 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -526,6 +585,7 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: data path tied to the user
 
@@ -537,21 +597,25 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_data_path
 
 
-def site_data_path(
+def site_data_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: data path shared by users
 
@@ -562,6 +626,7 @@ def site_data_path(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_data_path
 
 
@@ -572,6 +637,8 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -579,6 +646,7 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: config path tied to the user
 
@@ -590,21 +658,25 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_config_path
 
 
-def site_config_path(
+def site_config_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: config path shared by users
 
@@ -615,21 +687,25 @@ def site_config_path(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_config_path
 
 
-def site_cache_path(
+def site_cache_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: cache path shared by users
 
@@ -640,6 +716,7 @@ def site_cache_path(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_cache_path
 
 
@@ -650,6 +727,8 @@ def user_cache_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -657,6 +736,7 @@ def user_cache_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: cache path tied to the user
 
@@ -668,6 +748,7 @@ def user_cache_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_cache_path
 
 
@@ -678,6 +759,8 @@ def user_state_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -685,6 +768,7 @@ def user_state_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: state path tied to the user
 
@@ -696,6 +780,7 @@ def user_state_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_state_path
 
 
@@ -704,11 +789,14 @@ def site_state_path(
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: state path shared by users
 
@@ -718,6 +806,7 @@ def site_state_path(
         appauthor=appauthor,
         version=version,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_state_path
 
 
@@ -728,6 +817,8 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -735,6 +826,7 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: log path tied to the user
 
@@ -746,21 +838,25 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_log_path
 
 
-def site_log_path(
+def site_log_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: log path shared by users
 
@@ -771,6 +867,7 @@ def site_log_path(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_log_path
 
 
@@ -832,6 +929,7 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
     roaming: bool = False,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -839,6 +937,7 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: preference path tied to the user
 
@@ -850,6 +949,7 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
         roaming=roaming,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_preference_path
 
 
@@ -867,19 +967,21 @@ def site_bin_path() -> Path:
     return PlatformDirs().site_bin_path
 
 
-def user_applications_path(
+def user_applications_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: applications path tied to the user
 
@@ -890,22 +992,25 @@ def user_applications_path(
         version=version,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_applications_path
 
 
-def site_applications_path(
+def site_applications_path(  # ruff:ignore[too-many-arguments]
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     *,
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
+    safe_paths: bool = False,
 ) -> Path:
     """:param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: applications path shared by users
 
@@ -916,6 +1021,7 @@ def site_applications_path(
         version=version,
         multipath=multipath,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_applications_path
 
 
@@ -926,6 +1032,8 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -933,6 +1041,7 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: runtime path tied to the user
 
@@ -944,21 +1053,25 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
         opinion=opinion,
         ensure_exists=ensure_exists,
         use_site_for_root=use_site_for_root,
+        safe_paths=safe_paths,
     ).user_runtime_path
 
 
-def site_runtime_path(
+def site_runtime_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    safe_paths: bool = False,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param safe_paths: See `safe_paths <platformdirs.api.PlatformDirsABC.safe_paths>`.
 
     :returns: runtime path shared by users
 
@@ -969,6 +1082,7 @@ def site_runtime_path(
         version=version,
         opinion=opinion,
         ensure_exists=ensure_exists,
+        safe_paths=safe_paths,
     ).site_runtime_path
 
 
@@ -976,6 +1090,7 @@ __all__ = [
     "AppDirs",
     "PlatformDirs",
     "PlatformDirsABC",
+    "UnsafePathError",
     "__version__",
     "__version_info__",
     "site_applications_dir",

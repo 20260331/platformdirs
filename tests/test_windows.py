@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import platformdirs
 from platformdirs import windows
 from platformdirs.windows import (
     _KF_FLAG_DONT_VERIFY,
@@ -442,3 +443,25 @@ def test_windows_iter_runtime_dirs_no_duplicate() -> None:
     # site_runtime_dir is defined as user_runtime_dir.
     expected = os.path.join(_LOCAL, "Temp", "bar", "foo")  # ruff:ignore[os-path-join]
     assert list(Windows(appname="foo", appauthor="bar").iter_runtime_dirs()) == [expected]
+
+
+def test_safe_paths_normalizes_windows_parts() -> None:
+    result = Windows(appname=" foo ", appauthor=" bar ", version=" 1.0 ", safe_paths=True).user_data_dir
+    assert result == os.path.join(_LOCAL, "bar", "foo", "1.0")  # ruff:ignore[os-path-join]
+
+
+def test_safe_paths_skips_false_author_after_normalization() -> None:
+    result = Windows(appname=" foo ", appauthor=False, version=" 1.0 ", safe_paths=True).user_data_dir
+    assert result == os.path.join(_LOCAL, "foo", "1.0")  # ruff:ignore[os-path-join]
+
+
+@pytest.mark.parametrize("value", ["CON", "a/b", "a\\b", "..", "nul.txt", "foo.", "a:b", "lpt0", "  "])
+def test_safe_paths_rejects_unsafe_windows_identifier(value: str) -> None:
+    with pytest.raises(platformdirs.UnsafePathError):
+        Windows(appname=value, safe_paths=True)
+
+
+@pytest.mark.parametrize("value", ["CON", "a/b", ".."])
+def test_safe_paths_rejects_unsafe_windows_author(value: str) -> None:
+    with pytest.raises(platformdirs.UnsafePathError):
+        Windows(appname="foo", appauthor=value, safe_paths=True)

@@ -176,3 +176,145 @@ def test_iter_dirs_yields_user_before_site(kind: str) -> None:
     # docs/howto.rst merges config in reverse of this order so the user directory wins.
     dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
     assert next(getattr(dirs, f"iter_{kind}_dirs")()) == getattr(dirs, f"user_{kind}_dir")
+
+
+_APP_SCOPED_FUNCTIONS = (
+    "user_data_dir",
+    "site_data_dir",
+    "user_config_dir",
+    "site_config_dir",
+    "user_cache_dir",
+    "site_cache_dir",
+    "user_state_dir",
+    "site_state_dir",
+    "user_log_dir",
+    "site_log_dir",
+    "user_preference_dir",
+    "user_applications_dir",
+    "site_applications_dir",
+    "user_runtime_dir",
+    "site_runtime_dir",
+)
+_APP_SCOPED_FUNCTIONS += tuple(f"{name.removesuffix('_dir')}_path" for name in _APP_SCOPED_FUNCTIONS)
+
+
+def test_unsafe_path_error_is_value_error_and_exported() -> None:
+    assert issubclass(platformdirs.UnsafePathError, ValueError)
+    assert "UnsafePathError" in platformdirs.__all__
+
+
+@pytest.mark.parametrize(
+    ("parameter", "value", "expected"),
+    [
+        ("appname", "MyApp", "MyApp"),
+        ("appname", "  My App  ", "My App"),
+        ("appname", ".hidden", ".hidden"),
+        ("appname", "a.b.c", "a.b.c"),
+        ("appname", "conda", "conda"),  # starts like CON but is not a reserved device name
+        ("appname", "auxiliary", "auxiliary"),
+        ("appauthor", " Acme ", "Acme"),
+        ("appauthor", "Org 9", "Org 9"),
+        ("version", "1.0", "1.0"),
+        ("version", " 2.10.1 ", "2.10.1"),
+        ("version", "1.0\n", "1.0"),  # trailing newline is whitespace, normalized away
+        ("version", "LPT10", "LPT10"),  # only LPT0-LPT9 are reserved
+    ],
+)
+def test_safe_paths_normalizes_identifiers(parameter: str, value: str, expected: str) -> None:
+    dirs = platformdirs.PlatformDirs(safe_paths=True, **{parameter: value})
+    assert getattr(dirs, parameter) == expected
+    assert dirs.safe_paths is True
+
+
+def test_safe_paths_allows_none_and_false_author() -> None:
+    dirs = platformdirs.PlatformDirs(None, False, None, safe_paths=True)
+    assert dirs.appname is None
+    assert dirs.appauthor is False
+    assert dirs.version is None
+    assert dirs.safe_paths is True
+
+
+@pytest.mark.parametrize(
+    ("parameter", "value", "reason"),
+    [
+        ("appname", "", "empty"),
+        ("appname", "   ", "empty"),
+        ("appname", "\t\n ", "empty"),
+        ("appname", "../escape", "single path segment"),
+        ("appname", "/abs/path", "single path segment"),
+        ("appname", "a/b", "single path segment"),
+        ("appname", "a\\b", "single path segment"),
+        ("appname", ".", "'.' or '..'"),
+        ("appname", "..", "'.' or '..'"),
+        ("appname", "CON", "reserved Windows device name 'CON'"),
+        ("appname", "nul", "reserved Windows device name 'NUL'"),
+        ("appname", "nul.txt", "reserved Windows device name 'NUL'"),
+        ("appname", "com0", "reserved Windows device name 'COM0'"),
+        ("appname", "LPT9.config", "reserved Windows device name 'LPT9'"),
+        ("appname", "AUX", "reserved Windows device name 'AUX'"),
+        ("appname", "foo.", "end with a dot"),
+        ("appname", "a:b", "reserved path character ':'"),
+        ("appname", 'a"b', "reserved path character '\"'"),
+        ("appname", "a|b", "reserved path character '|'"),
+        ("appname", "a?b", "reserved path character '?'"),
+        ("appname", "a*b", "reserved path character '*'"),
+        ("appname", "a<b", "reserved path character '<'"),
+        ("appname", "a>b", "reserved path character '>'"),
+        ("appname", "a\tb", "control characters"),
+        ("appname", "a\x00b", "control characters"),
+        ("appauthor", "../company", "single path segment"),
+        ("appauthor", "PRN", "reserved Windows device name 'PRN'"),
+        ("appauthor", "  ", "empty"),
+        ("version", "a/b", "single path segment"),
+        ("version", "..", "'.' or '..'"),
+        ("version", "1.0\n2", "control characters"),
+    ],
+)
+def test_safe_paths_rejects_unsafe_identifiers(parameter: str, value: str, reason: str) -> None:
+    with pytest.raises(platformdirs.UnsafePathError) as exc_info:
+        platformdirs.PlatformDirs(safe_paths=True, **{parameter: value})
+    message = str(exc_info.value)
+    assert parameter in message
+    assert reason in message
+    assert repr(value) in message  # the received value is reported for diagnostics
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["../x", "CON", "a/b", "", " ", "nul.txt", "foo."],
+)
+def test_legacy_mode_keeps_identifiers_unchanged(value: str) -> None:
+    # safe_paths defaults to False, so existing callers observe no validation or normalization.
+    dirs = platformdirs.PlatformDirs(value, value, value)
+    assert dirs.appname == value
+    assert dirs.appauthor == value
+    assert dirs.version == value
+    assert dirs.safe_paths is False
+
+
+def test_safe_paths_accepts_ninth_positional_constructor_argument() -> None:
+    # The class constructor keeps the option positional-or-keyword so existing super().__init__(...) calls in
+    # subclasses are not broken.
+    dirs = platformdirs.PlatformDirs("App", None, None, False, False, True, False, False, True)
+    assert dirs.appname == "App"
+    assert dirs.safe_paths is True
+
+
+@pytest.mark.parametrize("name", _APP_SCOPED_FUNCTIONS)
+def test_function_safe_paths_is_keyword_only(name: str) -> None:
+    parameters = inspect.Signature.from_callable(getattr(platformdirs, name)).parameters
+    assert parameters["safe_paths"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameters["safe_paths"].default is False
+
+
+@pytest.mark.parametrize("name", _APP_SCOPED_FUNCTIONS)
+def test_function_safe_paths_rejects_unsafe_identifier(name: str) -> None:
+    with pytest.raises(platformdirs.UnsafePathError):
+        getattr(platformdirs, name)(appname="../escape", safe_paths=True)
+
+
+def test_safe_paths_normalized_path_matches_preset_identifier() -> None:
+    trimmed = platformdirs.PlatformDirs("MyApp", "Acme", version="1.0")
+    padded = platformdirs.PlatformDirs("  MyApp  ", " Acme ", version=" 1.0 ", safe_paths=True)
+    assert trimmed.user_data_dir == padded.user_data_dir
+    assert ".." not in Path(padded.user_data_dir).parts

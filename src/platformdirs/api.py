@@ -12,6 +12,16 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
+class UnsafePathError(ValueError):
+    """Raised when ``safe_paths`` is enabled and an app identifier cannot be used as a safe path segment.
+
+    Subclasses :class:`ValueError`, so code already catching ``ValueError`` keeps working. The error message names
+    the offending parameter (``appname``, ``appauthor`` or ``version``), the received value, and the rule that was
+    violated.
+
+    """
+
+
 class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
     """Abstract base class defining all platform directory properties, their :class:`~pathlib.Path` variants, and iterators.
 
@@ -31,6 +41,7 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+        safe_paths: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ) -> None:
         """Create a new platform directory.
 
@@ -42,8 +53,18 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         :param opinion: See `opinion`.
         :param ensure_exists: See `ensure_exists`.
         :param use_site_for_root: See `use_site_for_root`.
+        :param safe_paths: See `safe_paths`.
 
         """
+        if safe_paths:
+            # Fail fast at construction time so every property gets identifiers that resolve identically on every
+            # platform and can never escape the platform-defined base directory.
+            if appname is not None:
+                appname = _safe_app_path_segment("appname", appname)
+            if appauthor is not False and appauthor is not None:
+                appauthor = _safe_app_path_segment("appauthor", appauthor)
+            if version is not None:
+                version = _safe_app_path_segment("version", version)
         self.appname = appname  #: The name of the application.
         self.appauthor = appauthor
         """The name of the app author or distributing body for this application.
@@ -97,6 +118,16 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
 
         Only has an effect on Unix. Disabled by default for backwards compatibility. When enabled, XDG user environment
         variables (e.g. ``XDG_DATA_HOME``) are bypassed for the redirected directories.
+
+        """
+        self.safe_paths = safe_paths
+        """Whether ``appname``, ``appauthor`` and ``version`` are validated and normalized as single safe path segments.
+
+        Disabled by default for backwards compatibility. When enabled, leading and trailing whitespace is stripped and
+        a value that could escape the platform base directory or resolve inconsistently across platforms (path
+        separators, ``.``/``..``, Windows reserved device names such as ``CON`` or ``NUL``, forbidden characters and
+        trailing dots) raises :class:`UnsafePathError` at construction time. The same rules apply on every platform,
+        so a validated identifier produces the same directory structure on Unix, macOS and Windows.
 
         """
 
@@ -490,3 +521,62 @@ def _unique(dirs: Iterable[str]) -> Iterator[str]:
         if path not in seen:
             seen.add(path)
             yield path
+
+
+#: Windows reserved device names; reserved regardless of extension and case, e.g. ``NUL`` or ``Con.txt``.
+#: Microsoft documents the range as COM0-COM9 and LPT0-LPT9 (see Win32 file naming conventions).
+_WINDOWS_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"} | {f"{prefix}{i}" for prefix in ("COM", "LPT") for i in range(10)},
+)
+
+#: Characters that are illegal in Windows file/directory names (separators are checked separately).
+_FORBIDDEN_NAME_CHARACTERS = frozenset('<>:"|?*')
+
+
+def _safe_app_path_segment(parameter: str, value: str) -> str:
+    """Normalize and validate one app identifier (``appname``, ``appauthor`` or ``version``) for ``safe_paths``.
+
+    The rules are deliberately platform-independent: every separator and character that any supported platform treats
+    specially is rejected on all platforms, so accepted identifiers resolve to the same single directory segment on
+    Unix, macOS and Windows and can never climb out of the platform base directory.
+
+    :returns: the normalized segment (leading and trailing whitespace stripped)
+    :raises UnsafePathError: if the value is empty after stripping or violates any segment rule
+
+    """
+    stripped = value.strip()
+    if not stripped:
+        msg = f"{parameter} must not be empty or only whitespace when safe_paths is enabled (got {value!r})"
+        raise UnsafePathError(msg)
+    if "/" in stripped or "\\" in stripped:
+        msg = (
+            f"{parameter} must be a single path segment and cannot contain '/' or '\\' when safe_paths is enabled "
+            f"(got {value!r})"
+        )
+        raise UnsafePathError(msg)
+    if stripped in {".", ".."}:
+        msg = f"{parameter} must not be the '.' or '..' directory when safe_paths is enabled (got {value!r})"
+        raise UnsafePathError(msg)
+    if any(ord(char) < 0x20 for char in stripped):  # ruff:ignore[magic-value-comparison]
+        msg = f"{parameter} must not contain control characters when safe_paths is enabled (got {value!r})"
+        raise UnsafePathError(msg)
+    if forbidden := next((char for char in stripped if char in _FORBIDDEN_NAME_CHARACTERS), None):
+        msg = (
+            f"{parameter} must not contain the reserved path character {forbidden!r} when safe_paths is enabled "
+            f"(got {value!r})"
+        )
+        raise UnsafePathError(msg)
+    if stripped.endswith("."):
+        msg = (
+            f"{parameter} must not end with a dot, which Windows silently drops from directory names, when safe_paths "
+            f"is enabled (got {value!r})"
+        )
+        raise UnsafePathError(msg)
+    stem = stripped.split(".", 1)[0].upper()
+    if stem in _WINDOWS_RESERVED_NAMES:
+        msg = (
+            f"{parameter} uses the reserved Windows device name {stem!r}, which is not allowed when safe_paths is "
+            f"enabled (got {value!r})"
+        )
+        raise UnsafePathError(msg)
+    return stripped

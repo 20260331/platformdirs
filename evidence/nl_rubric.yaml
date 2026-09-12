@@ -1,0 +1,24 @@
+rubrics:
+  - id: 1
+    type: f2p
+    text: 安全模式对 appname、appauthor 和 version 将输入规范化为单一路径组件，并拒绝绝对路径、父目录、路径分隔符、空组件、控制字符、Windows 保留名称、尾随点和超长组件；异常包含字段名、原始值和违规原因。
+
+  - id: 2
+    type: f2p
+    text: 安全模式生成的每个目录结果都保持在选定的平台根目录内，realpath、大小写折叠、Unicode 等价字符和已有或竞态符号链接都不能绕过边界检查。
+
+  - id: 3
+    type: p2p
+    text: appauthor 为 false、空字符串或 None，version 缺失或包含多个点号组件时行为稳定，不凭空增加或删除平台规定的层级。
+
+  - id: 4
+    type: f2p
+    text: 同一安全规则适用于 PlatformDirs、所有 app-scoped 的 dir/path 独立函数、ensure_exists 创建以及 multipath 返回的每个路径。
+
+  - id: 5
+    type: p2p
+    text: 默认 safe_paths 关闭时旧输入和旧输出保持不变；启用安全模式后，校验失败不会留下部分创建目录，也不会修改传入字符串或全局环境。
+
+  - id: 6
+    type: f2p
+    text: Unix、macOS、Windows、Android 包路径、UNC 或网络共享路径和 Unicode 名称遵循同一安全规则，并有文档说明启用安全模式的迁移策略。

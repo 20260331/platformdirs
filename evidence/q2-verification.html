@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>platformdirs q2 verification</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { margin: 0; background: #10151c; color: #e8edf2; }
+    main { width: 1180px; margin: 0 auto; padding: 44px 56px 64px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    h2 { margin: 32px 0 12px; font-size: 19px; color: #9fd5ff; }
+    p, td, th { font-size: 14px; line-height: 1.55; }
+    .meta { color: #aab6c2; margin-bottom: 24px; }
+    .status { border-left: 5px solid #f2b84b; background: #252018; padding: 16px 20px; }
+    table { width: 100%; border-collapse: collapse; background: #171e27; }
+    th, td { text-align: left; vertical-align: top; padding: 11px 13px; border-bottom: 1px solid #2c3742; }
+    th { color: #b9c6d3; background: #202a35; }
+    .pass { color: #72e6a5; font-weight: 700; }
+    .fail { color: #ff9b91; font-weight: 700; }
+    code { color: #d3e9ff; background: #222d38; padding: 2px 5px; border-radius: 3px; }
+    pre { white-space: pre-wrap; background: #0b1015; border: 1px solid #2b3743; padding: 16px; line-height: 1.5; font-size: 13px; }
+    .small { color: #aab6c2; font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>platformdirs q2: safe app identity</h1>
+  <p class="meta">Base <code>e0847a69cafd0f2534270980a269c4e07f449e1e</code> | branch <code>swe/q2-safe-app-identity</code> | effective turns 120</p>
+  <div class="status"><strong>Requirement result: PARTIALLY COMPLETE</strong><br>
+    The normal safe-path API and legacy default behavior work, but the boundary guarantees and cross-platform evidence required by the fixed rubric are incomplete.</div>
+
+  <h2>Verification commands</h2>
+  <table>
+    <tr><th>Check</th><th>Result</th><th>Environment / notes</th></tr>
+    <tr><td><code>PYTHONPATH=src python3 -m pytest -q tests/test_api.py tests/test_windows.py</code></td><td class="pass">585 passed, 22 skipped</td><td>Loads the current worktree source.</td></tr>
+    <tr><td><code>env -u XDG_DATA_DIRS -u XDG_CONFIG_DIRS PYTHONPATH=src python3 -m pytest -q</code></td><td class="pass">1193 passed, 106 skipped</td><td>Full regression. Unsetting host XDG values is required by the existing root redirect tests.</td></tr>
+    <tr><td><code>python3 -m ruff check src tests</code><br><code>python3 -m ruff format --check src tests</code></td><td class="pass">Pass</td><td>16 files already formatted.</td></tr>
+  </table>
+
+  <h2>Fixed Verify Rubric</h2>
+  <table>
+    <tr><th>ID</th><th>Result</th><th>Evidence</th></tr>
+    <tr><td>1</td><td class="fail">NOT PASS</td><td>Basic separators, dot segments, empty values, controls below U+0020, reserved names and trailing dots are handled. No maximum component length; DEL U+007F is accepted.</td></tr>
+    <tr><td>2</td><td class="fail">NOT PASS</td><td>No canonical realpath/commonpath check, Unicode normalization, case folding, or symlink defense. A pre-existing appname symlink escapes the configured root.</td></tr>
+    <tr><td>3</td><td class="pass">PASS</td><td>None and appauthor=False preserve their meanings; dotted versions remain one segment; safe mode rejects empty values consistently in the implemented helper.</td></tr>
+    <tr><td>4</td><td class="pass">PASS</td><td>safe_paths is threaded through PlatformDirs, module-level dir/path functions, ensure_exists and multipath construction. Dedicated multipath/creation tests are limited.</td></tr>
+    <tr><td>5</td><td class="pass">PASS</td><td>Default is False, legacy inputs remain unchanged, and validation happens before directory creation. Symlink risk is recorded under rubric 2.</td></tr>
+    <tr><td>6</td><td class="fail">NOT PASS</td><td>Tests cover generic API and Windows only. No macOS, Android package, UNC/network, Unicode-equivalence, symlink, overlong-component, or migration-strategy evidence.</td></tr>
+  </table>
+
+  <h2>Focused boundary probes</h2>
+  <pre>symlink_escape ... ESCAPED=True
+overlong_rejected=False
+unicode_equal=False 'café' 'café'
+DEL rejected=False</pre>
+  <p class="small">The 11 unfiltered full-suite failures were caused by host XDG_DATA_DIRS/XDG_CONFIG_DIRS values and disappear after removing those external values; they are not attributed to the model patch.</p>
+</main>
+</body>
+</html>
