@@ -290,6 +290,51 @@ sources` for a practical example. The most specific directory comes first, and e
 
 See :class:`~platformdirs.api.PlatformDirsABC` for the full method documentation.
 
+******************************
+ Injectable platform strategy
+******************************
+
+:class:`~platformdirs.strategy.PlatformDirStrategy` selects the **system type**, **environment source**, and
+**directory rules** without touching process-global state such as :data:`sys.platform` or :data:`os.environ`. This is
+useful for applications that manage several environments at once and for tests that previously had to monkey-patch
+global variables. A strategy is immutable and safe to share across many :class:`~platformdirs.PlatformDirs`
+instances; instances built from different strategies never pollute one another. When no strategy is passed (the
+default), the package behaves exactly as it always has: it auto-detects the current platform and reads
+:data:`os.environ`.
+
+.. code-block:: python
+
+    from platformdirs import PlatformDirStrategy, user_data_dir
+
+    # Windows-style resolution driven entirely by an injected mapping, without setting a single real env var.
+    strategy = PlatformDirStrategy(
+        platform="windows",
+        env={"LOCALAPPDATA": r"C:\\Users\\Test\\AppData\\Local"},
+    )
+    assert user_data_dir("MyApp", strategy=strategy) == r"C:\\Users\\Test\\AppData\\Local\\MyApp\\MyApp"
+
+The same strategy is accepted by every standalone ``user_*``/``site_*`` function:
+
+.. code-block:: python
+
+    from platformdirs import user_config_path
+
+    config = user_config_path("MyApp", strategy=strategy)
+
+and by the platform classes themselves. Note that :class:`~platformdirs.PlatformDirs` is an alias for the *detected*
+class, so to instantiate the strategy-selected rules directly, resolve the class with
+:meth:`~platformdirs.strategy.PlatformDirStrategy.platform_class`:
+
+.. code-block:: python
+
+    dirs = strategy.platform_class()("MyApp", strategy=strategy)
+    assert dirs.user_data_dir == r"C:\\Users\\Test\\AppData\\Local\\MyApp\\MyApp"
+
+.. autoclass:: platformdirs.strategy.PlatformDirStrategy
+    :members:
+
+.. autofunction:: platformdirs.strategy.detect_platform_dir_class
+
 *************************
  Backwards compatibility
 *************************

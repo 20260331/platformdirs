@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import os
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Mapping
     from typing import Literal
+
+    from .strategy import PlatformDirStrategy
 
 
 class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
@@ -31,6 +34,8 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
         use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+        *,
+        strategy: PlatformDirStrategy | None = None,
     ) -> None:
         """Create a new platform directory.
 
@@ -42,6 +47,9 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         :param opinion: See `opinion`.
         :param ensure_exists: See `ensure_exists`.
         :param use_site_for_root: See `use_site_for_root`.
+        :param strategy: Optional :class:`~platformdirs.strategy.PlatformDirStrategy` selecting the system type,
+            environment source, and directory rules. When ``None`` (the default), the platform and its environment are
+            auto-detected as usual.
 
         """
         self.appname = appname  #: The name of the application.
@@ -99,6 +107,41 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         variables (e.g. ``XDG_DATA_HOME``) are bypassed for the redirected directories.
 
         """
+        self.strategy = strategy
+        """Optional strategy overriding the detected system type, environment source, and directory rules.
+
+        ``None`` means automatic detection and reads from the process-global :data:`os.environ`.
+
+        """
+
+    def _env_source(self) -> Mapping[str, str] | None:
+        """:returns: The injected environment mapping, or ``None`` to read the process-global :data:`os.environ`."""
+        if self.strategy is None:
+            return None
+        return self.strategy.env
+
+    def _getenv(self, name: str) -> str | None:
+        """Look up ``name`` in the injected environment source, falling back to :data:`os.environ`."""
+        source = self._env_source()
+        return os.environ.get(name) if source is None else source.get(name)
+
+    def _getenv_clean(self, name: str) -> str:
+        """:returns: The stripped value of ``name``, or an empty string when unset/blank."""
+        value = self._getenv(name)
+        return value.strip() if value is not None else ""
+
+    def _system(self) -> str:
+        """:returns: The :data:`sys.platform`-style system type the directory rules should assume."""
+        if self.strategy is not None:
+            return self.strategy.effective_system()
+        return sys.platform
+
+    def _expanduser(self, path: str) -> str:
+        """Expand an initial ``~`` using the injected environment source, or :func:`os.path.expanduser` by default."""
+        source = self._env_source()
+        if source is None:
+            return os.path.expanduser(path)  # ruff:ignore[os-path-expanduser]
+        return _expanduser(path, source, nt=self._system() == "win32")
 
     def _append_app_name_and_version(self, *base: str) -> str:
         params = list(base[1:])
@@ -490,3 +533,60 @@ def _unique(dirs: Iterable[str]) -> Iterator[str]:
         if path not in seen:
             seen.add(path)
             yield path
+
+
+def _expanduser(path: str, env: Mapping[str, str], *, nt: bool) -> str:
+    """Expand a leading ``~`` using ``env`` instead of the process environment.
+
+    Mirrors the relevant behavior of :func:`os.path.expanduser` so injected environments resolve home directories the
+    same way the live environment would. ``nt`` selects Windows (``%USERPROFILE%``) versus POSIX (``$HOME``) rules,
+    matching the selected directory rules rather than the host operating system.
+
+    """
+    if not path.startswith("~"):
+        return path
+    return _expanduser_nt(path, env) if nt else _expanduser_posix(path, env)
+
+
+def _expanduser_posix(path: str, env: Mapping[str, str]) -> str:
+    """POSIX variant of :func:`os.path.expanduser` backed by an injected mapping."""
+    end = path.find("/", 1)
+    if end < 0:
+        end = len(path)
+    name = path[1:end]
+    if not name:
+        home = env.get("HOME")
+        if not home:
+            try:
+                import pwd  # ruff:ignore[import-outside-top-level]
+
+                home = pwd.getpwuid(os.getuid()).pw_dir
+            except (KeyError, ModuleNotFoundError):
+                return path
+        return home + path[end:]
+    try:
+        import pwd  # ruff:ignore[import-outside-top-level]
+
+        home = pwd.getpwnam(name).pw_dir
+    except (KeyError, ModuleNotFoundError):
+        return path
+    return home + path[end:]
+
+
+def _expanduser_nt(path: str, env: Mapping[str, str]) -> str:
+    r"""Windows variant of :func:`os.path.expanduser` backed by an injected mapping."""
+    end = len(path)
+    for separator in ("/", "\\"):
+        index = path.find(separator, 1)
+        if 0 < index < end:
+            end = index
+    name = path[1:end]
+    if not name:
+        home = env.get("USERPROFILE")
+        if home is None:
+            home_path = env.get("HOMEPATH")
+            if home_path is None:
+                return path
+            home = env.get("HOMEDRIVE", "") + home_path
+        return home + path[end:]
+    return f"{env.get('HOMEDRIVE', 'C:')}\\Users\\{name}{path[end:]}"

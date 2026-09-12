@@ -9,39 +9,37 @@ See <https://github.com/platformdirs/platformdirs> for details and usage.
 
 from __future__ import annotations
 
-import os
-import sys
 from typing import TYPE_CHECKING
 
 from .api import PlatformDirsABC
+from .strategy import PlatformDirStrategy, detect_platform_dir_class
 from .version import __version__
 from .version import __version_tuple__ as __version_info__
 
 if TYPE_CHECKING:
+    import sys
     from pathlib import Path
-    from typing import Literal
+    from typing import Any, Literal
 
-if sys.platform == "win32":
-    from platformdirs.windows import Windows as _Result
-elif sys.platform == "darwin":
-    from platformdirs.macos import MacOS as _Result
-else:
-    from platformdirs.unix import Unix as _Result
+    if sys.platform == "win32":
+        from platformdirs.windows import Windows as _Result
+    elif sys.platform == "darwin":
+        from platformdirs.macos import MacOS as _Result
+    else:
+        from platformdirs.unix import Unix as _Result
 
 
 def _set_platform_dir_class() -> type[PlatformDirsABC]:
-    if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
-        if os.getenv("SHELL") or os.getenv("PREFIX"):
-            return _Result
+    return detect_platform_dir_class()
 
-        from platformdirs.android import _android_folder  # ruff:ignore[import-outside-top-level]
 
-        if _android_folder() is not None:
-            from platformdirs.android import Android  # ruff:ignore[import-outside-top-level]
-
-            return Android  # return to avoid redefinition of a result
-
-    return _Result
+def _make_dirs(
+    selected_strategy: PlatformDirStrategy | None,
+    **kwargs: Any,  # ruff:ignore[any-type]
+) -> PlatformDirsABC:
+    """Instantiate the directory-rule class selected by ``selected_strategy`` with the given application arguments."""
+    dir_class = PlatformDirs if selected_strategy is None else selected_strategy.platform_class()
+    return dir_class(strategy=selected_strategy, **kwargs)
 
 
 if TYPE_CHECKING:
@@ -59,6 +57,8 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -66,11 +66,13 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: data directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -80,23 +82,27 @@ def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     ).user_data_dir
 
 
-def site_data_dir(
+def site_data_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: data directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -112,6 +118,8 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -119,11 +127,13 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: config directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -133,23 +143,27 @@ def user_config_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     ).user_config_dir
 
 
-def site_config_dir(
+def site_config_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: config directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -165,6 +179,8 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -172,11 +188,13 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: cache directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -186,23 +204,27 @@ def user_cache_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     ).user_cache_dir
 
 
-def site_cache_dir(
+def site_cache_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: cache directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -218,6 +240,8 @@ def user_state_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -225,11 +249,13 @@ def user_state_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: state directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -244,16 +270,20 @@ def site_state_dir(
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: state directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -268,6 +298,8 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -275,11 +307,13 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: log directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -289,23 +323,27 @@ def user_log_dir(  # ruff:ignore[too-many-arguments, too-many-positional-argumen
     ).user_log_dir
 
 
-def site_log_dir(
+def site_log_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: log directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -314,54 +352,84 @@ def site_log_dir(
     ).site_log_dir
 
 
-def user_documents_dir() -> str:
-    """:returns: documents directory tied to the user"""
-    return PlatformDirs().user_documents_dir
+def user_documents_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: documents directory tied to the user
+    """
+    return _make_dirs(strategy).user_documents_dir
 
 
-def user_downloads_dir() -> str:
-    """:returns: downloads directory tied to the user"""
-    return PlatformDirs().user_downloads_dir
+def user_downloads_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: downloads directory tied to the user
+    """
+    return _make_dirs(strategy).user_downloads_dir
 
 
-def user_pictures_dir() -> str:
-    """:returns: pictures directory tied to the user"""
-    return PlatformDirs().user_pictures_dir
+def user_pictures_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: pictures directory tied to the user
+    """
+    return _make_dirs(strategy).user_pictures_dir
 
 
-def user_videos_dir() -> str:
-    """:returns: videos directory tied to the user"""
-    return PlatformDirs().user_videos_dir
+def user_videos_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: videos directory tied to the user
+    """
+    return _make_dirs(strategy).user_videos_dir
 
 
-def user_music_dir() -> str:
-    """:returns: music directory tied to the user"""
-    return PlatformDirs().user_music_dir
+def user_music_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: music directory tied to the user
+    """
+    return _make_dirs(strategy).user_music_dir
 
 
-def user_desktop_dir() -> str:
-    """:returns: desktop directory tied to the user"""
-    return PlatformDirs().user_desktop_dir
+def user_desktop_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: desktop directory tied to the user
+    """
+    return _make_dirs(strategy).user_desktop_dir
 
 
-def user_projects_dir() -> str:
-    """:returns: projects directory tied to the user"""
-    return PlatformDirs().user_projects_dir
+def user_projects_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: projects directory tied to the user
+    """
+    return _make_dirs(strategy).user_projects_dir
 
 
-def user_publicshare_dir() -> str:
-    """:returns: public share directory tied to the user"""
-    return PlatformDirs().user_publicshare_dir
+def user_publicshare_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: public share directory tied to the user
+    """
+    return _make_dirs(strategy).user_publicshare_dir
 
 
-def user_templates_dir() -> str:
-    """:returns: templates directory tied to the user"""
-    return PlatformDirs().user_templates_dir
+def user_templates_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: templates directory tied to the user
+    """
+    return _make_dirs(strategy).user_templates_dir
 
 
-def user_fonts_dir() -> str:
-    """:returns: fonts directory tied to the user"""
-    return PlatformDirs().user_fonts_dir
+def user_fonts_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: fonts directory tied to the user
+    """
+    return _make_dirs(strategy).user_fonts_dir
 
 
 def user_preference_dir(  # ruff:ignore[too-many-arguments]
@@ -369,6 +437,7 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
+    strategy: PlatformDirStrategy | None = None,
     roaming: bool = False,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
@@ -379,11 +448,13 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: preference directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -393,25 +464,30 @@ def user_preference_dir(  # ruff:ignore[too-many-arguments]
     ).user_preference_dir
 
 
-def user_bin_dir(*, use_site_for_root: bool = False) -> str:
+def user_bin_dir(*, strategy: PlatformDirStrategy | None = None, use_site_for_root: bool = False) -> str:
     """:param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: bin directory tied to the user
 
     """
-    return PlatformDirs(use_site_for_root=use_site_for_root).user_bin_dir
+    return _make_dirs(strategy, use_site_for_root=use_site_for_root).user_bin_dir
 
 
-def site_bin_dir() -> str:
-    """:returns: bin directory shared by users"""
-    return PlatformDirs().site_bin_dir
+def site_bin_dir(*, strategy: PlatformDirStrategy | None = None) -> str:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: bin directory shared by users
+    """
+    return _make_dirs(strategy).site_bin_dir
 
 
-def user_applications_dir(
+def user_applications_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
+    strategy: PlatformDirStrategy | None = None,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
 ) -> str:
@@ -420,11 +496,13 @@ def user_applications_dir(
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: applications directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -433,10 +511,11 @@ def user_applications_dir(
     ).user_applications_dir
 
 
-def site_applications_dir(
+def site_applications_dir(  # ruff:ignore[too-many-arguments]
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     *,
+    strategy: PlatformDirStrategy | None = None,
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
@@ -446,11 +525,13 @@ def site_applications_dir(
     :param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: applications directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -466,6 +547,8 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -473,11 +556,13 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: runtime directory tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -487,23 +572,27 @@ def user_runtime_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     ).user_runtime_dir
 
 
-def site_runtime_dir(
+def site_runtime_dir(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> str:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: runtime directory shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -519,6 +608,8 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -526,11 +617,13 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: data path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -540,23 +633,27 @@ def user_data_path(  # ruff:ignore[too-many-arguments, too-many-positional-argum
     ).user_data_path
 
 
-def site_data_path(
+def site_data_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: data path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -572,6 +669,8 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -579,11 +678,13 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: config path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -593,23 +694,27 @@ def user_config_path(  # ruff:ignore[too-many-arguments, too-many-positional-arg
     ).user_config_path
 
 
-def site_config_path(
+def site_config_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: config path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -618,23 +723,27 @@ def site_config_path(
     ).site_config_path
 
 
-def site_cache_path(
+def site_cache_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: cache path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -650,6 +759,8 @@ def user_cache_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -657,11 +768,13 @@ def user_cache_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: cache path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -678,6 +791,8 @@ def user_state_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     roaming: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -685,11 +800,13 @@ def user_state_path(  # ruff:ignore[too-many-arguments, too-many-positional-argu
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: state path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -704,16 +821,20 @@ def site_state_path(
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: state path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -728,6 +849,8 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -735,11 +858,13 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: log path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -749,23 +874,27 @@ def user_log_path(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     ).user_log_path
 
 
-def site_log_path(
+def site_log_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: log path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -774,54 +903,84 @@ def site_log_path(
     ).site_log_path
 
 
-def user_documents_path() -> Path:
-    """:returns: documents path tied to the user"""
-    return PlatformDirs().user_documents_path
+def user_documents_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: documents path tied to the user
+    """
+    return _make_dirs(strategy).user_documents_path
 
 
-def user_downloads_path() -> Path:
-    """:returns: downloads path tied to the user"""
-    return PlatformDirs().user_downloads_path
+def user_downloads_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: downloads path tied to the user
+    """
+    return _make_dirs(strategy).user_downloads_path
 
 
-def user_pictures_path() -> Path:
-    """:returns: pictures path tied to the user"""
-    return PlatformDirs().user_pictures_path
+def user_pictures_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: pictures path tied to the user
+    """
+    return _make_dirs(strategy).user_pictures_path
 
 
-def user_videos_path() -> Path:
-    """:returns: videos path tied to the user"""
-    return PlatformDirs().user_videos_path
+def user_videos_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: videos path tied to the user
+    """
+    return _make_dirs(strategy).user_videos_path
 
 
-def user_music_path() -> Path:
-    """:returns: music path tied to the user"""
-    return PlatformDirs().user_music_path
+def user_music_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: music path tied to the user
+    """
+    return _make_dirs(strategy).user_music_path
 
 
-def user_desktop_path() -> Path:
-    """:returns: desktop path tied to the user"""
-    return PlatformDirs().user_desktop_path
+def user_desktop_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: desktop path tied to the user
+    """
+    return _make_dirs(strategy).user_desktop_path
 
 
-def user_projects_path() -> Path:
-    """:returns: projects path tied to the user"""
-    return PlatformDirs().user_projects_path
+def user_projects_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: projects path tied to the user
+    """
+    return _make_dirs(strategy).user_projects_path
 
 
-def user_publicshare_path() -> Path:
-    """:returns: public share path tied to the user"""
-    return PlatformDirs().user_publicshare_path
+def user_publicshare_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: public share path tied to the user
+    """
+    return _make_dirs(strategy).user_publicshare_path
 
 
-def user_templates_path() -> Path:
-    """:returns: templates path tied to the user"""
-    return PlatformDirs().user_templates_path
+def user_templates_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: templates path tied to the user
+    """
+    return _make_dirs(strategy).user_templates_path
 
 
-def user_fonts_path() -> Path:
-    """:returns: fonts path tied to the user"""
-    return PlatformDirs().user_fonts_path
+def user_fonts_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: fonts path tied to the user
+    """
+    return _make_dirs(strategy).user_fonts_path
 
 
 def user_preference_path(  # ruff:ignore[too-many-arguments]
@@ -829,6 +988,7 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
+    strategy: PlatformDirStrategy | None = None,
     roaming: bool = False,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
@@ -839,11 +999,13 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
     :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: preference path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -853,25 +1015,30 @@ def user_preference_path(  # ruff:ignore[too-many-arguments]
     ).user_preference_path
 
 
-def user_bin_path(*, use_site_for_root: bool = False) -> Path:
+def user_bin_path(*, strategy: PlatformDirStrategy | None = None, use_site_for_root: bool = False) -> Path:
     """:param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: bin path tied to the user
 
     """
-    return PlatformDirs(use_site_for_root=use_site_for_root).user_bin_path
+    return _make_dirs(strategy, use_site_for_root=use_site_for_root).user_bin_path
 
 
-def site_bin_path() -> Path:
-    """:returns: bin path shared by users"""
-    return PlatformDirs().site_bin_path
+def site_bin_path(*, strategy: PlatformDirStrategy | None = None) -> Path:
+    """:param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
+
+    :returns: bin path shared by users
+    """
+    return _make_dirs(strategy).site_bin_path
 
 
-def user_applications_path(
+def user_applications_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     *,
+    strategy: PlatformDirStrategy | None = None,
     ensure_exists: bool = False,
     use_site_for_root: bool = False,
 ) -> Path:
@@ -880,11 +1047,13 @@ def user_applications_path(
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: applications path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -893,10 +1062,11 @@ def user_applications_path(
     ).user_applications_path
 
 
-def site_applications_path(
+def site_applications_path(  # ruff:ignore[too-many-arguments]
     multipath: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     *,
+    strategy: PlatformDirStrategy | None = None,
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
@@ -906,11 +1076,13 @@ def site_applications_path(
     :param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: applications path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -926,6 +1098,8 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     use_site_for_root: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
@@ -933,11 +1107,13 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
     :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: runtime path tied to the user
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -947,23 +1123,27 @@ def user_runtime_path(  # ruff:ignore[too-many-arguments, too-many-positional-ar
     ).user_runtime_path
 
 
-def site_runtime_path(
+def site_runtime_path(  # ruff:ignore[too-many-arguments]
     appname: str | None = None,
     appauthor: str | Literal[False] | None = None,
     version: str | None = None,
     opinion: bool = True,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
     ensure_exists: bool = False,  # ruff:ignore[boolean-type-hint-positional-argument, boolean-default-value-positional-argument]
+    *,
+    strategy: PlatformDirStrategy | None = None,
 ) -> Path:
     """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
     :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
     :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
     :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
     :param ensure_exists: See `ensure_exists <platformdirs.api.PlatformDirsABC.ensure_exists>`.
+    :param strategy: Optional `PlatformDirStrategy <platformdirs.strategy.PlatformDirStrategy>` choosing the system type, environment source, and directory rules; ``None`` (the default) keeps the automatic detection behavior.
 
     :returns: runtime path shared by users
 
     """
-    return PlatformDirs(
+    return _make_dirs(
+        strategy,
         appname=appname,
         appauthor=appauthor,
         version=version,
@@ -974,6 +1154,7 @@ def site_runtime_path(
 
 __all__ = [
     "AppDirs",
+    "PlatformDirStrategy",
     "PlatformDirs",
     "PlatformDirsABC",
     "__version__",
