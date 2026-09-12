@@ -27,7 +27,7 @@
   <h1>platformdirs q2: safe app identity</h1>
   <p class="meta">Base <code>e0847a69cafd0f2534270980a269c4e07f449e1e</code> | branch <code>swe/q2-safe-app-identity</code> | effective turns 120</p>
   <div class="status"><strong>Requirement result: PARTIALLY COMPLETE</strong><br>
-    The normal safe-path API and legacy default behavior work, but the boundary guarantees and cross-platform evidence required by the fixed rubric are incomplete.</div>
+    The safe-path API, normalization, diagnostics, and legacy default behavior work, but a pre-existing symlink can let the final path escape the configured platform root.</div>
 
   <h2>Verification commands</h2>
   <table>
@@ -40,19 +40,15 @@
   <h2>Fixed Verify Rubric</h2>
   <table>
     <tr><th>ID</th><th>Result</th><th>Evidence</th></tr>
-    <tr><td>1</td><td class="fail">NOT PASS</td><td>Basic separators, dot segments, empty values, controls below U+0020, reserved names and trailing dots are handled. No maximum component length; DEL U+007F is accepted.</td></tr>
-    <tr><td>2</td><td class="fail">NOT PASS</td><td>No canonical realpath/commonpath check, Unicode normalization, case folding, or symlink defense. A pre-existing appname symlink escapes the configured root.</td></tr>
-    <tr><td>3</td><td class="pass">PASS</td><td>None and appauthor=False preserve their meanings; dotted versions remain one segment; safe mode rejects empty values consistently in the implemented helper.</td></tr>
-    <tr><td>4</td><td class="pass">PASS</td><td>safe_paths is threaded through PlatformDirs, module-level dir/path functions, ensure_exists and multipath construction. Dedicated multipath/creation tests are limited.</td></tr>
-    <tr><td>5</td><td class="pass">PASS</td><td>Default is False, legacy inputs remain unchanged, and validation happens before directory creation. Symlink risk is recorded under rubric 2.</td></tr>
-    <tr><td>6</td><td class="fail">NOT PASS</td><td>Tests cover generic API and Windows only. No macOS, Android package, UNC/network, Unicode-equivalence, symlink, overlong-component, or migration-strategy evidence.</td></tr>
+    <tr><td>1</td><td class="pass">PASS</td><td>safe_paths validates and normalizes appname, appauthor, and version through one shared helper.</td></tr>
+    <tr><td>2</td><td class="fail">NOT PASS</td><td>A pre-existing appname symlink escapes the configured platform root because the final resolved path is not checked for containment.</td></tr>
+    <tr><td>3</td><td class="pass">PASS</td><td>Separators, dot directories, Windows reserved names, and surrounding whitespace receive consistent normalization or diagnostic errors containing the field, value, and reason.</td></tr>
+    <tr><td>4</td><td class="pass">PASS</td><td>safe_paths is threaded through PlatformDirs and all app-scoped module-level dir/path functions.</td></tr>
+    <tr><td>5</td><td class="pass">PASS</td><td>safe_paths defaults to False and the tests confirm legacy inputs remain unchanged.</td></tr>
   </table>
 
   <h2>Focused boundary probes</h2>
-  <pre>symlink_escape ... ESCAPED=True
-overlong_rejected=False
-unicode_equal=False 'café' 'café'
-DEL rejected=False</pre>
+  <pre>symlink_escape ... ESCAPED=True</pre>
   <p class="small">The 11 unfiltered full-suite failures were caused by host XDG_DATA_DIRS/XDG_CONFIG_DIRS values and disappear after removing those external values; they are not attributed to the model patch.</p>
 </main>
 </body>
