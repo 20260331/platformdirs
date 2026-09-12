@@ -212,6 +212,23 @@ def test_android_iter_dirs_no_duplicates(func: str, expected: str) -> None:
     assert list(getattr(Android(appname="foo"), func)()) == [expected]
 
 
+@pytest.mark.usefixtures("_example_android_folder")
+@pytest.mark.parametrize(
+    ("method", "expected"),
+    [
+        pytest.param("search_config_dirs", "/data/data/com.example/shared_prefs/foo", id="config"),
+        pytest.param("search_data_dirs", "/data/data/com.example/files/foo", id="data"),
+        pytest.param("search_cache_dirs", "/data/data/com.example/cache/foo", id="cache"),
+        pytest.param("search_plugin_dirs", "/data/data/com.example/files/foo/plugins", id="plugin"),
+    ],
+)
+def test_android_search_dirs_no_duplicates(method: str, expected: str) -> None:
+    # Every site_*_dir on Android is defined as its user_*_dir, so each search yields a single directory.
+    assert getattr(Android(appname="foo"), method)() == [expected]
+    paths_method = method.removesuffix("_dirs") + "_paths"
+    assert getattr(Android(appname="foo"), paths_method)() == [Path(expected)]
+
+
 _SCOPED_APPLICATIONS_DIR: Final[str] = "/data/data/com.example/files/foo/1.0"
 
 

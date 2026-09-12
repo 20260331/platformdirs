@@ -152,6 +152,23 @@ user-specific overrides:
 The same pattern works with :meth:`~platformdirs.api.PlatformDirsABC.iter_data_paths` for data files and
 :meth:`~platformdirs.api.PlatformDirsABC.iter_config_dirs` for string paths.
 
+Finding an existing resource in the search path
+===============================================
+
+The ``search_*`` functions return the ordered, deduplicated list of directories a resource could live in, considering
+user directories, site directories, environment variables and the multipath site list. Pass ``existing_only=True`` when
+you only want directories that already exist; without it, not-yet-created candidate directories are returned too so you
+can pick the first writable one:
+
+.. code-block:: python
+
+    from platformdirs import PlatformDirs
+
+    dirs = PlatformDirs("MyApp")
+    for plugin_dir in dirs.search_plugin_paths(existing_only=True):
+        for plugin in plugin_dir.glob("*.plugin"):
+            print(plugin)
+
 Testing code that uses platformdirs
 ===================================
 

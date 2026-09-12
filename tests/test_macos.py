@@ -448,3 +448,48 @@ def test_macos_iter_runtime_dirs_no_duplicate(home: str) -> None:
     # site_runtime_dir is defined as user_runtime_dir.
     expected = os.path.join(f"{home}/Library/Caches/TemporaryItems", "foo")  # ruff:ignore[os-path-join]
     assert list(MacOS(appname="foo").iter_runtime_dirs()) == [expected]
+
+
+@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
+@pytest.mark.parametrize("method", ["search_config_dirs", "search_data_dirs"])
+def test_macos_search_dirs_user_before_site(home: str, method: str) -> None:
+    assert getattr(MacOS(appname="foo"), method)() == [
+        f"{home}/Library/Application Support/foo",
+        "/Library/Application Support/foo",
+    ]
+
+
+@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
+def test_macos_search_cache_dirs_lists_every_site_cache(home: str) -> None:
+    assert MacOS(appname="foo").search_cache_dirs() == [
+        f"{home}/Library/Caches/foo",
+        "/Library/Caches/foo",
+    ]
+
+
+@pytest.mark.usefixtures("_clear_xdg_env", "_homebrew_py_prefix")
+def test_macos_search_cache_dirs_includes_homebrew_site_cache(home: str) -> None:
+    assert MacOS(appname="foo").search_cache_dirs() == [
+        f"{home}/Library/Caches/foo",
+        "/opt/homebrew/var/cache/foo",
+        "/Library/Caches/foo",
+    ]
+
+
+@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
+def test_macos_search_plugin_dirs_follow_data_dirs(home: str) -> None:
+    assert MacOS(appname="foo").search_plugin_paths() == [
+        Path(f"{home}/Library/Application Support/foo/plugins"),
+        Path("/Library/Application Support/foo/plugins"),
+    ]
+
+
+@pytest.mark.usefixtures("_builtin_py_prefix")
+def test_macos_search_config_dirs_xdg(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg/config")
+    monkeypatch.setenv("XDG_CONFIG_DIRS", f"/xdg/etc1{os.pathsep}/xdg/etc2")
+    assert MacOS(appname="foo").search_config_dirs() == [
+        "/xdg/config/foo",
+        "/xdg/etc1/foo",
+        "/xdg/etc2/foo",
+    ]

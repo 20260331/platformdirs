@@ -290,6 +290,37 @@ sources` for a practical example. The most specific directory comes first, and e
 
 See :class:`~platformdirs.api.PlatformDirsABC` for the full method documentation.
 
+**************
+ Search paths
+**************
+
+The search functions return every directory to look in when locating a resource - configuration, data, cache or plugin
+files - as a list in platform search order. The most specific directory comes first, user directories precede shared
+ones, and each distinct directory appears once. User directories, site directories, environment variables (such as
+``$XDG_CONFIG_HOME`` and ``$XDG_CONFIG_DIRS``) and the multipath site list are all taken into account. The existing
+single-directory properties are unchanged; these functions are an additional, read-only interface that never creates a
+directory as a side effect.
+
+By default candidate directories that have not been created yet are returned too; pass ``existing_only=True`` to keep
+only the directories that currently exist. Plugins are looked up in a ``plugins`` subdirectory of every data directory.
+The ``*_paths`` variants return :class:`~pathlib.Path` values instead of strings.
+
+.. autofunction:: platformdirs.search_config_dirs
+
+.. autofunction:: platformdirs.search_config_paths
+
+.. autofunction:: platformdirs.search_data_dirs
+
+.. autofunction:: platformdirs.search_data_paths
+
+.. autofunction:: platformdirs.search_cache_dirs
+
+.. autofunction:: platformdirs.search_cache_paths
+
+.. autofunction:: platformdirs.search_plugin_dirs
+
+.. autofunction:: platformdirs.search_plugin_paths
+
 *************************
  Backwards compatibility
 *************************

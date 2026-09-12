@@ -480,6 +480,89 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         for path in self.iter_runtime_dirs():
             yield Path(path)
 
+    def search_config_dirs(self, *, existing_only: bool = False) -> list[str]:
+        """Configuration directories in platform search order, most specific first.
+
+        Combines the user directory with every site directory - including all entries of the multipath list, e.g.
+        ``$XDG_CONFIG_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
+        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
+
+        :param existing_only: skip candidate directories that have not been created yet
+        :returns: directories to search for configuration files
+
+        """
+        return _select_dirs(self.iter_config_dirs(), existing_only)
+
+    def search_data_dirs(self, *, existing_only: bool = False) -> list[str]:
+        """Data directories in platform search order, most specific first.
+
+        Combines the user directory with every site directory - including all entries of the multipath list, e.g.
+        ``$XDG_DATA_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
+        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
+
+        :param existing_only: skip candidate directories that have not been created yet
+        :returns: directories to search for data files
+
+        """
+        return _select_dirs(self.iter_data_dirs(), existing_only)
+
+    def search_cache_dirs(self, *, existing_only: bool = False) -> list[str]:
+        """Cache directories in platform search order, most specific first.
+
+        Combines the user directory with every site directory - including all entries of the multipath list - and
+        keeps the order stable. Repeated directories are returned once. Candidate directories that do not exist yet
+        are included unless ``existing_only`` is set.
+
+        :param existing_only: skip candidate directories that have not been created yet
+        :returns: directories to search for cache files
+
+        """
+        return _select_dirs(self.iter_cache_dirs(), existing_only)
+
+    def search_plugin_dirs(self, *, existing_only: bool = False) -> list[str]:
+        """Plugin directories in platform search order, most specific first.
+
+        Plugins are looked up in a ``plugins`` subdirectory of every data directory, so the result follows the user
+        data directory and the site data directories - including all entries of the multipath list, e.g.
+        ``$XDG_DATA_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
+        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
+
+        :param existing_only: skip candidate directories that have not been created yet
+        :returns: directories to search for plugin files
+
+        """
+        return _select_dirs(_unique(self._iter_plugin_dirs()), existing_only)
+
+    def _iter_plugin_dirs(self) -> Iterator[str]:
+        for directory in self._iter_data_dirs():
+            yield os.path.join(directory, "plugins")  # ruff:ignore[os-path-join]
+
+    def search_config_paths(self, *, existing_only: bool = False) -> list[Path]:
+        """Same as :meth:`search_config_dirs`, but returns :class:`~pathlib.Path` values."""
+        return [Path(directory) for directory in self.search_config_dirs(existing_only=existing_only)]
+
+    def search_data_paths(self, *, existing_only: bool = False) -> list[Path]:
+        """Same as :meth:`search_data_dirs`, but returns :class:`~pathlib.Path` values."""
+        return [Path(directory) for directory in self.search_data_dirs(existing_only=existing_only)]
+
+    def search_cache_paths(self, *, existing_only: bool = False) -> list[Path]:
+        """Same as :meth:`search_cache_dirs`, but returns :class:`~pathlib.Path` values."""
+        return [Path(directory) for directory in self.search_cache_dirs(existing_only=existing_only)]
+
+    def search_plugin_paths(self, *, existing_only: bool = False) -> list[Path]:
+        """Same as :meth:`search_plugin_dirs`, but returns :class:`~pathlib.Path` values."""
+        return [Path(directory) for directory in self.search_plugin_dirs(existing_only=existing_only)]
+
+
+def _select_dirs(
+    directories: Iterable[str],
+    existing_only: bool,  # ruff:ignore[boolean-type-hint-positional-argument]
+) -> list[str]:
+    """Materialize ``directories`` in order, dropping the ones that do not exist when ``existing_only`` is set."""
+    if existing_only:
+        directories = (directory for directory in directories if Path(directory).is_dir())
+    return list(directories)
+
 
 def _unique(dirs: Iterable[str]) -> Iterator[str]:
     """:yield: ``dirs`` in order, skipping any directory already yielded."""

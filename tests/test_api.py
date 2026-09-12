@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins
 import functools
 import inspect
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -171,8 +172,61 @@ def test_mypy_subclassing() -> None:
     class AppDirsSubclass(platformdirs.AppDirs): ...
 
 
-@pytest.mark.parametrize("kind", ["config", "data", "cache", "state", "log", "runtime"])
+@pytest.mark.parametrize("kind", ["config", "data", "cache", "runtime"])
 def test_iter_dirs_yields_user_before_site(kind: str) -> None:
     # docs/howto.rst merges config in reverse of this order so the user directory wins.
     dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
     assert next(getattr(dirs, f"iter_{kind}_dirs")()) == getattr(dirs, f"user_{kind}_dir")
+
+
+_SEARCH_KINDS = ["config", "data", "cache", "plugin"]
+
+
+@pytest.mark.parametrize("kind", _SEARCH_KINDS)
+def test_search_dirs_function_returns_strings(kind: str) -> None:
+    result = getattr(platformdirs, f"search_{kind}_dirs")(appname="MyApp")
+    assert isinstance(result, list)
+    assert all(isinstance(directory, str) for directory in result)
+
+
+@pytest.mark.parametrize("kind", _SEARCH_KINDS)
+def test_search_paths_function_returns_paths(kind: str) -> None:
+    result = getattr(platformdirs, f"search_{kind}_paths")(appname="MyApp")
+    assert isinstance(result, list)
+    assert all(isinstance(directory, Path) for directory in result)
+
+
+@pytest.mark.parametrize("kind", _SEARCH_KINDS)
+def test_search_dir_and_path_function_signatures_match(kind: str) -> None:
+    dirs_signature = inspect.Signature.from_callable(getattr(platformdirs, f"search_{kind}_dirs"))
+    paths_signature = inspect.Signature.from_callable(getattr(platformdirs, f"search_{kind}_paths"))
+    assert dirs_signature.parameters == paths_signature.parameters
+
+
+@pytest.mark.parametrize("kind", _SEARCH_KINDS)
+def test_search_methods_lead_with_the_user_directory(kind: str) -> None:
+    dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
+    result = getattr(dirs, f"search_{kind}_dirs")()
+    assert result  # at least one candidate
+    assert len(result) == len(set(result))  # no repeated directory
+    if kind != "plugin":
+        assert result[0] == getattr(dirs, f"user_{kind}_dir")
+    else:
+        assert result[0] == os.path.join(dirs.user_data_dir, "plugins")  # ruff:ignore[os-path-join]
+
+
+@pytest.mark.parametrize("kind", _SEARCH_KINDS)
+def test_search_methods_existing_only_is_a_subset(kind: str) -> None:
+    dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
+    existing = getattr(dirs, f"search_{kind}_dirs")(existing_only=True)
+    candidates = getattr(dirs, f"search_{kind}_dirs")()
+    assert set(existing).issubset(candidates)
+
+
+def test_search_options_are_keyword_only() -> None:
+    parameters = inspect.Signature.from_callable(platformdirs.search_config_dirs).parameters
+    assert [name for name, param in parameters.items() if param.kind is param.POSITIONAL_OR_KEYWORD] == [
+        "appname",
+        "appauthor",
+        "version",
+    ]

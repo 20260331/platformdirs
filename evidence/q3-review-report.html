@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>platformdirs q3 审核证据</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f6f8; color: #18212b; }
+    main { width: min(1180px, calc(100% - 48px)); margin: 36px auto; }
+    h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: 0; }
+    .meta { margin: 0 0 26px; color: #4a5b6b; font-size: 15px; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+    section { background: #fff; border: 1px solid #d7dee5; border-radius: 6px; padding: 20px; }
+    h2 { margin: 0 0 14px; font-size: 20px; letter-spacing: 0; }
+    dl { display: grid; grid-template-columns: 126px 1fr; gap: 10px 14px; margin: 0; }
+    dt { color: #526575; }
+    dd { margin: 0; }
+    .pass { color: #087a46; font-weight: 700; }
+    .fail { color: #bd2c22; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { padding: 12px 10px; border-top: 1px solid #e1e6eb; text-align: left; vertical-align: top; line-height: 1.5; }
+    th { color: #526575; font-size: 14px; }
+    th:first-child, td:first-child { width: 54px; }
+    th:nth-child(2), td:nth-child(2) { width: 80px; }
+    code { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; font-size: 13px; }
+    pre { margin: 0; padding: 14px; overflow-wrap: anywhere; white-space: pre-wrap; background: #111a23; color: #e9f0f5; border-radius: 5px; line-height: 1.55; }
+    .rubrics, .commands { margin-top: 18px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>platformdirs q3 有序资源搜索路径审核证据</h1>
+  <p class="meta">基线 e0847a6 · 分支 swe/q3-ordered-resource-search · 有效轮数 94 · 2026-09-12</p>
+
+  <div class="summary">
+    <section>
+      <h2>验证结果</h2>
+      <dl>
+        <dt>隔离安装</dt><dd class="pass">editable 工作树源码</dd>
+        <dt>完整回归</dt><dd class="pass">1110 passed, 106 skipped</dd>
+        <dt>静态/文档</dt><dd class="pass">ruff check / format、ty check、Sphinx -W 构建通过</dd>
+        <dt>宿主环境</dt><dd>原始 XDG_* 污染导致 11 个既有用例假失败；清理后全通过</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>功能结论</h2>
+      <dl>
+        <dt>完成度</dt><dd class="fail">部分完成</dd>
+        <dt>Type</dt><dd class="fail">有效轮数 &lt; 100 且 效果差</dd>
+        <dt>主要缺陷</dt><dd>缺少站点优先；multipath 选项不生效；逻辑重复路径未去重；existing_only 可被 ensure_exists 改写语义</dd>
+        <dt>已实现</dt><dd>四类目录、字符串/Path、独立函数、四平台基础顺序与结果隔离</dd>
+        <dt>工程问题</dt><dd>既有 iter_* 用户优先测试移除了 state、log 两个参数，回归覆盖被无必要削弱</dd>
+      </dl>
+    </section>
+  </div>
+
+  <section class="rubrics">
+    <h2>逐条判定</h2>
+    <table>
+      <thead><tr><th>ID</th><th>结果</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="fail">未通过</td><td>四类搜索入口存在且默认用户优先，但没有站点优先或顺序选择接口。</td></tr>
+        <tr><td>2</td><td class="fail">未通过</td><td>multipath=False/True 返回相同完整站点列表；相对项进入结果；/site 与 /site/. 未按同一目录去重。</td></tr>
+        <tr><td>3</td><td class="fail">未通过</td><td>existing_only 基础筛选和权限异常传播有效，但 ensure_exists=True 会先创建缺失候选，再把它们全部返回。</td></tr>
+        <tr><td>4</td><td class="pass">通过</td><td>应用标识、版本、roaming、opinion、use_site_for_root 与 Android 特殊目录的基础平台测试通过。</td></tr>
+        <tr><td>5</td><td class="pass">通过</td><td>每次返回独立 list；调用方修改不污染后续调用；环境变化可立即反映。</td></tr>
+        <tr><td>6</td><td class="pass">通过</td><td>独立函数与实例方法基础行为一致；清理宿主 XDG 环境后完整测试无回归。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="commands">
+    <h2>可复核命令</h2>
+    <pre><code>env -u XDG_CONFIG_HOME -u XDG_CONFIG_DIRS -u XDG_DATA_HOME -u XDG_DATA_DIRS \
+  -u XDG_CACHE_HOME -u XDG_STATE_HOME -u XDG_RUNTIME_DIR \
+  /tmp/platformdirs-q3-audit/bin/python -m pytest -q
+/tmp/platformdirs-q3-audit/bin/ruff check src tests
+/tmp/platformdirs-q3-audit/bin/ruff format --check src tests
+/tmp/platformdirs-q3-audit/bin/ty check src
+/tmp/platformdirs-q3-audit/bin/sphinx-build -d /tmp/platformdirs-q3-docs-tree docs \
+  /tmp/platformdirs-q3-docs-out -b html -W</code></pre>
+  </section>
+</main>
+</body>
+</html>

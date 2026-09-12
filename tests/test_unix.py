@@ -596,3 +596,100 @@ def test_iter_runtime_dirs_no_duplicate_with_xdg_runtime_dir(monkeypatch: pytest
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
     # $XDG_RUNTIME_DIR backs both the user and the site runtime directory.
     assert list(Unix(appname="foo").iter_runtime_dirs()) == [os.path.join("/run/user/1000", "foo")]  # ruff:ignore[os-path-join]
+
+
+def test_search_config_dirs_orders_user_before_site_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg/config")
+    monkeypatch.setenv("XDG_CONFIG_DIRS", f"/xdg/etc1{os.pathsep}/xdg/etc2")
+    assert Unix(appname="foo").search_config_dirs() == [
+        "/xdg/config/foo",
+        "/xdg/etc1/foo",
+        "/xdg/etc2/foo",
+    ]
+
+
+def test_search_data_dirs_orders_user_before_site_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
+    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
+    assert Unix(appname="foo").search_data_dirs() == [
+        "/xdg/data/foo",
+        "/xdg/share1/foo",
+        "/xdg/share2/foo",
+    ]
+
+
+def test_search_cache_dirs_orders_user_before_site(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CACHE_HOME", "/xdg/cache")
+    assert Unix(appname="foo").search_cache_dirs() == ["/xdg/cache/foo", os.path.join("/var/cache", "foo")]  # ruff:ignore[os-path-join]
+
+
+def test_search_plugin_dirs_follow_the_data_search_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
+    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
+    assert Unix(appname="foo").search_plugin_dirs() == [
+        "/xdg/data/foo/plugins",
+        "/xdg/share1/foo/plugins",
+        "/xdg/share2/foo/plugins",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("env_var", "method", "suffix"),
+    [
+        ("XDG_CONFIG_DIRS", "search_config_dirs", "foo"),
+        ("XDG_DATA_DIRS", "search_data_dirs", "foo"),
+        ("XDG_DATA_DIRS", "search_plugin_dirs", os.path.join("foo", "plugins")),  # ruff:ignore[os-path-join]
+    ],
+)
+def test_search_dirs_keep_each_path_once(
+    monkeypatch: pytest.MonkeyPatch, env_var: str, method: str, suffix: str
+) -> None:
+    monkeypatch.setenv(env_var.removesuffix("DIRS") + "HOME", "/xdg/home")
+    monkeypatch.setenv(env_var, f"/xdg/home{os.pathsep}/xdg/other")
+    assert getattr(Unix(appname="foo"), method)() == [
+        os.path.join("/xdg/home", suffix),  # ruff:ignore[os-path-join]
+        os.path.join("/xdg/other", suffix),  # ruff:ignore[os-path-join]
+    ]
+
+
+def test_search_dirs_return_lists() -> None:
+    dirs = Unix(appname="foo")
+    assert isinstance(dirs.search_config_dirs(), list)
+    assert isinstance(dirs.search_config_paths(), list)
+    assert all(isinstance(path, Path) for path in dirs.search_config_paths())
+
+
+def test_search_dirs_existing_only_keeps_existing_candidates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    user = tmp_path / "user"
+    missing = tmp_path / "missing"
+    present = tmp_path / "present"
+    (user / "foo").mkdir(parents=True)
+    (present / "foo").mkdir(parents=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(user))
+    monkeypatch.setenv("XDG_CONFIG_DIRS", f"{missing}{os.pathsep}{present}")
+
+    platform_dirs = Unix(appname="foo")
+    candidates = [str(user / "foo"), str(missing / "foo"), str(present / "foo")]
+    assert platform_dirs.search_config_dirs() == candidates
+    assert platform_dirs.search_config_dirs(existing_only=True) == [str(user / "foo"), str(present / "foo")]
+    assert platform_dirs.search_config_paths(existing_only=True) == [user / "foo", present / "foo"]
+
+
+def test_search_dirs_do_not_create_candidates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "site"))
+    result = Unix(appname="foo").search_plugin_dirs()
+    assert result == [str(tmp_path / "user" / "foo" / "plugins"), str(tmp_path / "site" / "foo" / "plugins")]
+    assert all(not Path(directory).exists() for directory in result)
+
+
+def test_search_dirs_module_function(mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    mocker.patch("platformdirs.PlatformDirs", Unix)
+    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
+    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
+    assert platformdirs.search_data_dirs(appname="foo") == [
+        "/xdg/data/foo",
+        "/xdg/share1/foo",
+        "/xdg/share2/foo",
+    ]
+    assert platformdirs.search_data_paths(appname="foo", existing_only=True) == []

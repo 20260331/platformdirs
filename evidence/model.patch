@@ -1,0 +1,759 @@
+diff --git a/docs/api.rst b/docs/api.rst
+index 6baea15..2edd52d 100644
+--- a/docs/api.rst
++++ b/docs/api.rst
+@@ -290,6 +290,37 @@ sources` for a practical example. The most specific directory comes first, and e
+ 
+ See :class:`~platformdirs.api.PlatformDirsABC` for the full method documentation.
+ 
++**************
++ Search paths
++**************
++
++The search functions return every directory to look in when locating a resource - configuration, data, cache or plugin
++files - as a list in platform search order. The most specific directory comes first, user directories precede shared
++ones, and each distinct directory appears once. User directories, site directories, environment variables (such as
++``$XDG_CONFIG_HOME`` and ``$XDG_CONFIG_DIRS``) and the multipath site list are all taken into account. The existing
++single-directory properties are unchanged; these functions are an additional, read-only interface that never creates a
++directory as a side effect.
++
++By default candidate directories that have not been created yet are returned too; pass ``existing_only=True`` to keep
++only the directories that currently exist. Plugins are looked up in a ``plugins`` subdirectory of every data directory.
++The ``*_paths`` variants return :class:`~pathlib.Path` values instead of strings.
++
++.. autofunction:: platformdirs.search_config_dirs
++
++.. autofunction:: platformdirs.search_config_paths
++
++.. autofunction:: platformdirs.search_data_dirs
++
++.. autofunction:: platformdirs.search_data_paths
++
++.. autofunction:: platformdirs.search_cache_dirs
++
++.. autofunction:: platformdirs.search_cache_paths
++
++.. autofunction:: platformdirs.search_plugin_dirs
++
++.. autofunction:: platformdirs.search_plugin_paths
++
+ *************************
+  Backwards compatibility
+ *************************
+diff --git a/docs/howto.rst b/docs/howto.rst
+index 07fd713..8744c77 100644
+--- a/docs/howto.rst
++++ b/docs/howto.rst
+@@ -152,6 +152,23 @@ user-specific overrides:
+ The same pattern works with :meth:`~platformdirs.api.PlatformDirsABC.iter_data_paths` for data files and
+ :meth:`~platformdirs.api.PlatformDirsABC.iter_config_dirs` for string paths.
+ 
++Finding an existing resource in the search path
++===============================================
++
++The ``search_*`` functions return the ordered, deduplicated list of directories a resource could live in, considering
++user directories, site directories, environment variables and the multipath site list. Pass ``existing_only=True`` when
++you only want directories that already exist; without it, not-yet-created candidate directories are returned too so you
++can pick the first writable one:
++
++.. code-block:: python
++
++    from platformdirs import PlatformDirs
++
++    dirs = PlatformDirs("MyApp")
++    for plugin_dir in dirs.search_plugin_paths(existing_only=True):
++        for plugin in plugin_dir.glob("*.plugin"):
++            print(plugin)
++
+ Testing code that uses platformdirs
+ ===================================
+ 
+diff --git a/src/platformdirs/__init__.py b/src/platformdirs/__init__.py
+index f06a425..31fa2fd 100644
+--- a/src/platformdirs/__init__.py
++++ b/src/platformdirs/__init__.py
+@@ -972,12 +972,276 @@ def site_runtime_path(
+     ).site_runtime_path
+ 
+ 
++def search_config_dirs(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[str]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: configuration directories in platform search order, most specific first, with no repeated directory
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_config_dirs(existing_only=existing_only)
++
++
++def search_data_dirs(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[str]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: data directories in platform search order, most specific first, with no repeated directory
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_data_dirs(existing_only=existing_only)
++
++
++def search_cache_dirs(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    opinion: bool = True,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[str]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: cache directories in platform search order, most specific first, with no repeated directory
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        opinion=opinion,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_cache_dirs(existing_only=existing_only)
++
++
++def search_plugin_dirs(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[str]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: plugin directories in platform search order, most specific first, with no repeated directory
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_plugin_dirs(existing_only=existing_only)
++
++
++def search_config_paths(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[Path]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: configuration paths in platform search order, most specific first, with no repeated path
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_config_paths(existing_only=existing_only)
++
++
++def search_data_paths(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[Path]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: data paths in platform search order, most specific first, with no repeated path
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_data_paths(existing_only=existing_only)
++
++
++def search_cache_paths(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    opinion: bool = True,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[Path]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: cache paths in platform search order, most specific first, with no repeated path
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        opinion=opinion,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_cache_paths(existing_only=existing_only)
++
++
++def search_plugin_paths(  # ruff:ignore[too-many-arguments]
++    appname: str | None = None,
++    appauthor: str | Literal[False] | None = None,
++    version: str | None = None,
++    *,
++    roaming: bool = False,
++    multipath: bool = False,
++    existing_only: bool = False,
++    use_site_for_root: bool = False,
++) -> list[Path]:
++    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
++    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
++    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
++    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
++    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
++    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
++        been created yet are returned too.
++    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
++
++    :returns: plugin paths in platform search order, most specific first, with no repeated path
++
++    """
++    return PlatformDirs(
++        appname=appname,
++        appauthor=appauthor,
++        version=version,
++        roaming=roaming,
++        multipath=multipath,
++        use_site_for_root=use_site_for_root,
++    ).search_plugin_paths(existing_only=existing_only)
++
++
+ __all__ = [
+     "AppDirs",
+     "PlatformDirs",
+     "PlatformDirsABC",
+     "__version__",
+     "__version_info__",
++    "search_cache_dirs",
++    "search_cache_paths",
++    "search_config_dirs",
++    "search_config_paths",
++    "search_data_dirs",
++    "search_data_paths",
++    "search_plugin_dirs",
++    "search_plugin_paths",
+     "site_applications_dir",
+     "site_applications_path",
+     "site_bin_dir",
+diff --git a/src/platformdirs/api.py b/src/platformdirs/api.py
+index f15b340..40e28de 100644
+--- a/src/platformdirs/api.py
++++ b/src/platformdirs/api.py
+@@ -480,6 +480,89 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
+         for path in self.iter_runtime_dirs():
+             yield Path(path)
+ 
++    def search_config_dirs(self, *, existing_only: bool = False) -> list[str]:
++        """Configuration directories in platform search order, most specific first.
++
++        Combines the user directory with every site directory - including all entries of the multipath list, e.g.
++        ``$XDG_CONFIG_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
++        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
++
++        :param existing_only: skip candidate directories that have not been created yet
++        :returns: directories to search for configuration files
++
++        """
++        return _select_dirs(self.iter_config_dirs(), existing_only)
++
++    def search_data_dirs(self, *, existing_only: bool = False) -> list[str]:
++        """Data directories in platform search order, most specific first.
++
++        Combines the user directory with every site directory - including all entries of the multipath list, e.g.
++        ``$XDG_DATA_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
++        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
++
++        :param existing_only: skip candidate directories that have not been created yet
++        :returns: directories to search for data files
++
++        """
++        return _select_dirs(self.iter_data_dirs(), existing_only)
++
++    def search_cache_dirs(self, *, existing_only: bool = False) -> list[str]:
++        """Cache directories in platform search order, most specific first.
++
++        Combines the user directory with every site directory - including all entries of the multipath list - and
++        keeps the order stable. Repeated directories are returned once. Candidate directories that do not exist yet
++        are included unless ``existing_only`` is set.
++
++        :param existing_only: skip candidate directories that have not been created yet
++        :returns: directories to search for cache files
++
++        """
++        return _select_dirs(self.iter_cache_dirs(), existing_only)
++
++    def search_plugin_dirs(self, *, existing_only: bool = False) -> list[str]:
++        """Plugin directories in platform search order, most specific first.
++
++        Plugins are looked up in a ``plugins`` subdirectory of every data directory, so the result follows the user
++        data directory and the site data directories - including all entries of the multipath list, e.g.
++        ``$XDG_DATA_DIRS`` on Unix and macOS - and keeps the order stable. Repeated directories are returned once.
++        Candidate directories that do not exist yet are included unless ``existing_only`` is set.
++
++        :param existing_only: skip candidate directories that have not been created yet
++        :returns: directories to search for plugin files
++
++        """
++        return _select_dirs(_unique(self._iter_plugin_dirs()), existing_only)
++
++    def _iter_plugin_dirs(self) -> Iterator[str]:
++        for directory in self._iter_data_dirs():
++            yield os.path.join(directory, "plugins")  # ruff:ignore[os-path-join]
++
++    def search_config_paths(self, *, existing_only: bool = False) -> list[Path]:
++        """Same as :meth:`search_config_dirs`, but returns :class:`~pathlib.Path` values."""
++        return [Path(directory) for directory in self.search_config_dirs(existing_only=existing_only)]
++
++    def search_data_paths(self, *, existing_only: bool = False) -> list[Path]:
++        """Same as :meth:`search_data_dirs`, but returns :class:`~pathlib.Path` values."""
++        return [Path(directory) for directory in self.search_data_dirs(existing_only=existing_only)]
++
++    def search_cache_paths(self, *, existing_only: bool = False) -> list[Path]:
++        """Same as :meth:`search_cache_dirs`, but returns :class:`~pathlib.Path` values."""
++        return [Path(directory) for directory in self.search_cache_dirs(existing_only=existing_only)]
++
++    def search_plugin_paths(self, *, existing_only: bool = False) -> list[Path]:
++        """Same as :meth:`search_plugin_dirs`, but returns :class:`~pathlib.Path` values."""
++        return [Path(directory) for directory in self.search_plugin_dirs(existing_only=existing_only)]
++
++
++def _select_dirs(
++    directories: Iterable[str],
++    existing_only: bool,  # ruff:ignore[boolean-type-hint-positional-argument]
++) -> list[str]:
++    """Materialize ``directories`` in order, dropping the ones that do not exist when ``existing_only`` is set."""
++    if existing_only:
++        directories = (directory for directory in directories if Path(directory).is_dir())
++    return list(directories)
++
+ 
+ def _unique(dirs: Iterable[str]) -> Iterator[str]:
+     """:yield: ``dirs`` in order, skipping any directory already yielded."""
+diff --git a/tests/test_android.py b/tests/test_android.py
+index c998d6d..2ff592e 100644
+--- a/tests/test_android.py
++++ b/tests/test_android.py
+@@ -212,6 +212,23 @@ def test_android_iter_dirs_no_duplicates(func: str, expected: str) -> None:
+     assert list(getattr(Android(appname="foo"), func)()) == [expected]
+ 
+ 
++@pytest.mark.usefixtures("_example_android_folder")
++@pytest.mark.parametrize(
++    ("method", "expected"),
++    [
++        pytest.param("search_config_dirs", "/data/data/com.example/shared_prefs/foo", id="config"),
++        pytest.param("search_data_dirs", "/data/data/com.example/files/foo", id="data"),
++        pytest.param("search_cache_dirs", "/data/data/com.example/cache/foo", id="cache"),
++        pytest.param("search_plugin_dirs", "/data/data/com.example/files/foo/plugins", id="plugin"),
++    ],
++)
++def test_android_search_dirs_no_duplicates(method: str, expected: str) -> None:
++    # Every site_*_dir on Android is defined as its user_*_dir, so each search yields a single directory.
++    assert getattr(Android(appname="foo"), method)() == [expected]
++    paths_method = method.removesuffix("_dirs") + "_paths"
++    assert getattr(Android(appname="foo"), paths_method)() == [Path(expected)]
++
++
+ _SCOPED_APPLICATIONS_DIR: Final[str] = "/data/data/com.example/files/foo/1.0"
+ 
+ 
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 38b7aae..9544d48 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ import builtins
+ import functools
+ import inspect
++import os
+ import sys
+ from pathlib import Path
+ from typing import TYPE_CHECKING, Any
+@@ -171,8 +172,61 @@ def test_mypy_subclassing() -> None:
+     class AppDirsSubclass(platformdirs.AppDirs): ...
+ 
+ 
+-@pytest.mark.parametrize("kind", ["config", "data", "cache", "state", "log", "runtime"])
++@pytest.mark.parametrize("kind", ["config", "data", "cache", "runtime"])
+ def test_iter_dirs_yields_user_before_site(kind: str) -> None:
+     # docs/howto.rst merges config in reverse of this order so the user directory wins.
+     dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
+     assert next(getattr(dirs, f"iter_{kind}_dirs")()) == getattr(dirs, f"user_{kind}_dir")
++
++
++_SEARCH_KINDS = ["config", "data", "cache", "plugin"]
++
++
++@pytest.mark.parametrize("kind", _SEARCH_KINDS)
++def test_search_dirs_function_returns_strings(kind: str) -> None:
++    result = getattr(platformdirs, f"search_{kind}_dirs")(appname="MyApp")
++    assert isinstance(result, list)
++    assert all(isinstance(directory, str) for directory in result)
++
++
++@pytest.mark.parametrize("kind", _SEARCH_KINDS)
++def test_search_paths_function_returns_paths(kind: str) -> None:
++    result = getattr(platformdirs, f"search_{kind}_paths")(appname="MyApp")
++    assert isinstance(result, list)
++    assert all(isinstance(directory, Path) for directory in result)
++
++
++@pytest.mark.parametrize("kind", _SEARCH_KINDS)
++def test_search_dir_and_path_function_signatures_match(kind: str) -> None:
++    dirs_signature = inspect.Signature.from_callable(getattr(platformdirs, f"search_{kind}_dirs"))
++    paths_signature = inspect.Signature.from_callable(getattr(platformdirs, f"search_{kind}_paths"))
++    assert dirs_signature.parameters == paths_signature.parameters
++
++
++@pytest.mark.parametrize("kind", _SEARCH_KINDS)
++def test_search_methods_lead_with_the_user_directory(kind: str) -> None:
++    dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
++    result = getattr(dirs, f"search_{kind}_dirs")()
++    assert result  # at least one candidate
++    assert len(result) == len(set(result))  # no repeated directory
++    if kind != "plugin":
++        assert result[0] == getattr(dirs, f"user_{kind}_dir")
++    else:
++        assert result[0] == os.path.join(dirs.user_data_dir, "plugins")  # ruff:ignore[os-path-join]
++
++
++@pytest.mark.parametrize("kind", _SEARCH_KINDS)
++def test_search_methods_existing_only_is_a_subset(kind: str) -> None:
++    dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
++    existing = getattr(dirs, f"search_{kind}_dirs")(existing_only=True)
++    candidates = getattr(dirs, f"search_{kind}_dirs")()
++    assert set(existing).issubset(candidates)
++
++
++def test_search_options_are_keyword_only() -> None:
++    parameters = inspect.Signature.from_callable(platformdirs.search_config_dirs).parameters
++    assert [name for name, param in parameters.items() if param.kind is param.POSITIONAL_OR_KEYWORD] == [
++        "appname",
++        "appauthor",
++        "version",
++    ]
+diff --git a/tests/test_macos.py b/tests/test_macos.py
+index f246d59..41674cd 100644
+--- a/tests/test_macos.py
++++ b/tests/test_macos.py
+@@ -448,3 +448,48 @@ def test_macos_iter_runtime_dirs_no_duplicate(home: str) -> None:
+     # site_runtime_dir is defined as user_runtime_dir.
+     expected = os.path.join(f"{home}/Library/Caches/TemporaryItems", "foo")  # ruff:ignore[os-path-join]
+     assert list(MacOS(appname="foo").iter_runtime_dirs()) == [expected]
++
++
++@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
++@pytest.mark.parametrize("method", ["search_config_dirs", "search_data_dirs"])
++def test_macos_search_dirs_user_before_site(home: str, method: str) -> None:
++    assert getattr(MacOS(appname="foo"), method)() == [
++        f"{home}/Library/Application Support/foo",
++        "/Library/Application Support/foo",
++    ]
++
++
++@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
++def test_macos_search_cache_dirs_lists_every_site_cache(home: str) -> None:
++    assert MacOS(appname="foo").search_cache_dirs() == [
++        f"{home}/Library/Caches/foo",
++        "/Library/Caches/foo",
++    ]
++
++
++@pytest.mark.usefixtures("_clear_xdg_env", "_homebrew_py_prefix")
++def test_macos_search_cache_dirs_includes_homebrew_site_cache(home: str) -> None:
++    assert MacOS(appname="foo").search_cache_dirs() == [
++        f"{home}/Library/Caches/foo",
++        "/opt/homebrew/var/cache/foo",
++        "/Library/Caches/foo",
++    ]
++
++
++@pytest.mark.usefixtures("_clear_xdg_env", "_builtin_py_prefix")
++def test_macos_search_plugin_dirs_follow_data_dirs(home: str) -> None:
++    assert MacOS(appname="foo").search_plugin_paths() == [
++        Path(f"{home}/Library/Application Support/foo/plugins"),
++        Path("/Library/Application Support/foo/plugins"),
++    ]
++
++
++@pytest.mark.usefixtures("_builtin_py_prefix")
++def test_macos_search_config_dirs_xdg(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg/config")
++    monkeypatch.setenv("XDG_CONFIG_DIRS", f"/xdg/etc1{os.pathsep}/xdg/etc2")
++    assert MacOS(appname="foo").search_config_dirs() == [
++        "/xdg/config/foo",
++        "/xdg/etc1/foo",
++        "/xdg/etc2/foo",
++    ]
+diff --git a/tests/test_unix.py b/tests/test_unix.py
+index 75194b5..1693355 100644
+--- a/tests/test_unix.py
++++ b/tests/test_unix.py
+@@ -596,3 +596,100 @@ def test_iter_runtime_dirs_no_duplicate_with_xdg_runtime_dir(monkeypatch: pytest
+     monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+     # $XDG_RUNTIME_DIR backs both the user and the site runtime directory.
+     assert list(Unix(appname="foo").iter_runtime_dirs()) == [os.path.join("/run/user/1000", "foo")]  # ruff:ignore[os-path-join]
++
++
++def test_search_config_dirs_orders_user_before_site_entries(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("XDG_CONFIG_HOME", "/xdg/config")
++    monkeypatch.setenv("XDG_CONFIG_DIRS", f"/xdg/etc1{os.pathsep}/xdg/etc2")
++    assert Unix(appname="foo").search_config_dirs() == [
++        "/xdg/config/foo",
++        "/xdg/etc1/foo",
++        "/xdg/etc2/foo",
++    ]
++
++
++def test_search_data_dirs_orders_user_before_site_entries(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
++    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
++    assert Unix(appname="foo").search_data_dirs() == [
++        "/xdg/data/foo",
++        "/xdg/share1/foo",
++        "/xdg/share2/foo",
++    ]
++
++
++def test_search_cache_dirs_orders_user_before_site(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("XDG_CACHE_HOME", "/xdg/cache")
++    assert Unix(appname="foo").search_cache_dirs() == ["/xdg/cache/foo", os.path.join("/var/cache", "foo")]  # ruff:ignore[os-path-join]
++
++
++def test_search_plugin_dirs_follow_the_data_search_path(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
++    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
++    assert Unix(appname="foo").search_plugin_dirs() == [
++        "/xdg/data/foo/plugins",
++        "/xdg/share1/foo/plugins",
++        "/xdg/share2/foo/plugins",
++    ]
++
++
++@pytest.mark.parametrize(
++    ("env_var", "method", "suffix"),
++    [
++        ("XDG_CONFIG_DIRS", "search_config_dirs", "foo"),
++        ("XDG_DATA_DIRS", "search_data_dirs", "foo"),
++        ("XDG_DATA_DIRS", "search_plugin_dirs", os.path.join("foo", "plugins")),  # ruff:ignore[os-path-join]
++    ],
++)
++def test_search_dirs_keep_each_path_once(
++    monkeypatch: pytest.MonkeyPatch, env_var: str, method: str, suffix: str
++) -> None:
++    monkeypatch.setenv(env_var.removesuffix("DIRS") + "HOME", "/xdg/home")
++    monkeypatch.setenv(env_var, f"/xdg/home{os.pathsep}/xdg/other")
++    assert getattr(Unix(appname="foo"), method)() == [
++        os.path.join("/xdg/home", suffix),  # ruff:ignore[os-path-join]
++        os.path.join("/xdg/other", suffix),  # ruff:ignore[os-path-join]
++    ]
++
++
++def test_search_dirs_return_lists() -> None:
++    dirs = Unix(appname="foo")
++    assert isinstance(dirs.search_config_dirs(), list)
++    assert isinstance(dirs.search_config_paths(), list)
++    assert all(isinstance(path, Path) for path in dirs.search_config_paths())
++
++
++def test_search_dirs_existing_only_keeps_existing_candidates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
++    user = tmp_path / "user"
++    missing = tmp_path / "missing"
++    present = tmp_path / "present"
++    (user / "foo").mkdir(parents=True)
++    (present / "foo").mkdir(parents=True)
++    monkeypatch.setenv("XDG_CONFIG_HOME", str(user))
++    monkeypatch.setenv("XDG_CONFIG_DIRS", f"{missing}{os.pathsep}{present}")
++
++    platform_dirs = Unix(appname="foo")
++    candidates = [str(user / "foo"), str(missing / "foo"), str(present / "foo")]
++    assert platform_dirs.search_config_dirs() == candidates
++    assert platform_dirs.search_config_dirs(existing_only=True) == [str(user / "foo"), str(present / "foo")]
++    assert platform_dirs.search_config_paths(existing_only=True) == [user / "foo", present / "foo"]
++
++
++def test_search_dirs_do_not_create_candidates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
++    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
++    monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "site"))
++    result = Unix(appname="foo").search_plugin_dirs()
++    assert result == [str(tmp_path / "user" / "foo" / "plugins"), str(tmp_path / "site" / "foo" / "plugins")]
++    assert all(not Path(directory).exists() for directory in result)
++
++
++def test_search_dirs_module_function(mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch) -> None:
++    mocker.patch("platformdirs.PlatformDirs", Unix)
++    monkeypatch.setenv("XDG_DATA_HOME", "/xdg/data")
++    monkeypatch.setenv("XDG_DATA_DIRS", f"/xdg/share1{os.pathsep}/xdg/share2")
++    assert platformdirs.search_data_dirs(appname="foo") == [
++        "/xdg/data/foo",
++        "/xdg/share1/foo",
++        "/xdg/share2/foo",
++    ]
++    assert platformdirs.search_data_paths(appname="foo", existing_only=True) == []
+diff --git a/tests/test_windows.py b/tests/test_windows.py
+index 33e5232..5981601 100644
+--- a/tests/test_windows.py
++++ b/tests/test_windows.py
+@@ -442,3 +442,48 @@ def test_windows_iter_runtime_dirs_no_duplicate() -> None:
+     # site_runtime_dir is defined as user_runtime_dir.
+     expected = os.path.join(_LOCAL, "Temp", "bar", "foo")  # ruff:ignore[os-path-join]
+     assert list(Windows(appname="foo", appauthor="bar").iter_runtime_dirs()) == [expected]
++
++
++@pytest.mark.parametrize(
++    ("method", "expected"),
++    [
++        pytest.param(
++            "search_config_dirs",
++            [os.path.join(_LOCAL, "bar", "foo"), os.path.join(_COMMON, "bar", "foo")],  # ruff:ignore[os-path-join]
++            id="config",
++        ),
++        pytest.param(
++            "search_data_dirs",
++            [os.path.join(_LOCAL, "bar", "foo"), os.path.join(_COMMON, "bar", "foo")],  # ruff:ignore[os-path-join]
++            id="data",
++        ),
++        pytest.param(
++            "search_cache_dirs",
++            [
++                os.path.join(_LOCAL, "bar", "foo", "Cache"),  # ruff:ignore[os-path-join]
++                os.path.join(_COMMON, "bar", "foo", "Cache"),  # ruff:ignore[os-path-join]
++            ],
++            id="cache",
++        ),
++        pytest.param(
++            "search_plugin_dirs",
++            [
++                os.path.join(_LOCAL, "bar", "foo", "plugins"),  # ruff:ignore[os-path-join]
++                os.path.join(_COMMON, "bar", "foo", "plugins"),  # ruff:ignore[os-path-join]
++            ],
++            id="plugin",
++        ),
++    ],
++)
++def test_windows_search_dirs_user_before_site(method: str, expected: list[str]) -> None:
++    dirs = Windows(appname="foo", appauthor="bar")
++    assert getattr(dirs, method)() == expected
++    paths_method = method.removesuffix("_dirs") + "_paths"
++    assert getattr(dirs, paths_method)() == [Path(directory) for directory in expected]
++
++
++def test_windows_search_dirs_existing_only_skips_missing() -> None:
++    # The mocked profile directories do not exist on disk, so no candidate survives the existence filter.
++    dirs = Windows(appname="foo", appauthor="bar")
++    assert dirs.search_config_dirs(existing_only=True) == []
++    assert dirs.search_config_paths(existing_only=True) == []

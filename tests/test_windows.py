@@ -442,3 +442,48 @@ def test_windows_iter_runtime_dirs_no_duplicate() -> None:
     # site_runtime_dir is defined as user_runtime_dir.
     expected = os.path.join(_LOCAL, "Temp", "bar", "foo")  # ruff:ignore[os-path-join]
     assert list(Windows(appname="foo", appauthor="bar").iter_runtime_dirs()) == [expected]
+
+
+@pytest.mark.parametrize(
+    ("method", "expected"),
+    [
+        pytest.param(
+            "search_config_dirs",
+            [os.path.join(_LOCAL, "bar", "foo"), os.path.join(_COMMON, "bar", "foo")],  # ruff:ignore[os-path-join]
+            id="config",
+        ),
+        pytest.param(
+            "search_data_dirs",
+            [os.path.join(_LOCAL, "bar", "foo"), os.path.join(_COMMON, "bar", "foo")],  # ruff:ignore[os-path-join]
+            id="data",
+        ),
+        pytest.param(
+            "search_cache_dirs",
+            [
+                os.path.join(_LOCAL, "bar", "foo", "Cache"),  # ruff:ignore[os-path-join]
+                os.path.join(_COMMON, "bar", "foo", "Cache"),  # ruff:ignore[os-path-join]
+            ],
+            id="cache",
+        ),
+        pytest.param(
+            "search_plugin_dirs",
+            [
+                os.path.join(_LOCAL, "bar", "foo", "plugins"),  # ruff:ignore[os-path-join]
+                os.path.join(_COMMON, "bar", "foo", "plugins"),  # ruff:ignore[os-path-join]
+            ],
+            id="plugin",
+        ),
+    ],
+)
+def test_windows_search_dirs_user_before_site(method: str, expected: list[str]) -> None:
+    dirs = Windows(appname="foo", appauthor="bar")
+    assert getattr(dirs, method)() == expected
+    paths_method = method.removesuffix("_dirs") + "_paths"
+    assert getattr(dirs, paths_method)() == [Path(directory) for directory in expected]
+
+
+def test_windows_search_dirs_existing_only_skips_missing() -> None:
+    # The mocked profile directories do not exist on disk, so no candidate survives the existence filter.
+    dirs = Windows(appname="foo", appauthor="bar")
+    assert dirs.search_config_dirs(existing_only=True) == []
+    assert dirs.search_config_paths(existing_only=True) == []

@@ -972,12 +972,276 @@ def site_runtime_path(
     ).site_runtime_path
 
 
+def search_config_dirs(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[str]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: configuration directories in platform search order, most specific first, with no repeated directory
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_config_dirs(existing_only=existing_only)
+
+
+def search_data_dirs(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[str]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: data directories in platform search order, most specific first, with no repeated directory
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_data_dirs(existing_only=existing_only)
+
+
+def search_cache_dirs(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    opinion: bool = True,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[str]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: cache directories in platform search order, most specific first, with no repeated directory
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        opinion=opinion,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_cache_dirs(existing_only=existing_only)
+
+
+def search_plugin_dirs(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[str]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: plugin directories in platform search order, most specific first, with no repeated directory
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_plugin_dirs(existing_only=existing_only)
+
+
+def search_config_paths(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[Path]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: configuration paths in platform search order, most specific first, with no repeated path
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_config_paths(existing_only=existing_only)
+
+
+def search_data_paths(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[Path]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: data paths in platform search order, most specific first, with no repeated path
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_data_paths(existing_only=existing_only)
+
+
+def search_cache_paths(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    opinion: bool = True,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[Path]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param opinion: See `opinion <platformdirs.api.PlatformDirsABC.opinion>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: cache paths in platform search order, most specific first, with no repeated path
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        opinion=opinion,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_cache_paths(existing_only=existing_only)
+
+
+def search_plugin_paths(  # ruff:ignore[too-many-arguments]
+    appname: str | None = None,
+    appauthor: str | Literal[False] | None = None,
+    version: str | None = None,
+    *,
+    roaming: bool = False,
+    multipath: bool = False,
+    existing_only: bool = False,
+    use_site_for_root: bool = False,
+) -> list[Path]:
+    """:param appname: See `appname <platformdirs.api.PlatformDirsABC.appname>`.
+    :param appauthor: See `appauthor <platformdirs.api.PlatformDirsABC.appauthor>`.
+    :param version: See `version <platformdirs.api.PlatformDirsABC.version>`.
+    :param roaming: See `roaming <platformdirs.api.PlatformDirsABC.roaming>`.
+    :param multipath: See `multipath <platformdirs.api.PlatformDirsABC.multipath>` (the full site list is always searched).
+    :param existing_only: Return only directories that currently exist; by default candidate directories that have not
+        been created yet are returned too.
+    :param use_site_for_root: See `use_site_for_root <platformdirs.api.PlatformDirsABC.use_site_for_root>`.
+
+    :returns: plugin paths in platform search order, most specific first, with no repeated path
+
+    """
+    return PlatformDirs(
+        appname=appname,
+        appauthor=appauthor,
+        version=version,
+        roaming=roaming,
+        multipath=multipath,
+        use_site_for_root=use_site_for_root,
+    ).search_plugin_paths(existing_only=existing_only)
+
+
 __all__ = [
     "AppDirs",
     "PlatformDirs",
     "PlatformDirsABC",
     "__version__",
     "__version_info__",
+    "search_cache_dirs",
+    "search_cache_paths",
+    "search_config_dirs",
+    "search_config_paths",
+    "search_data_dirs",
+    "search_data_paths",
+    "search_plugin_dirs",
+    "search_plugin_paths",
     "site_applications_dir",
     "site_applications_path",
     "site_bin_dir",
