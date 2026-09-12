@@ -47,11 +47,10 @@
     <section>
       <h2>功能结论</h2>
       <dl>
-        <dt>完成度</dt><dd class="fail">部分完成</dd>
-        <dt>Type</dt><dd class="fail">有效轮数 &lt; 100 且 效果差</dd>
-        <dt>主要缺陷</dt><dd>缺少站点优先；multipath 选项不生效；逻辑重复路径未去重；existing_only 可被 ensure_exists 改写语义</dd>
-        <dt>已实现</dt><dd>四类目录、字符串/Path、独立函数、四平台基础顺序与结果隔离</dd>
-        <dt>工程问题</dt><dd>既有 iter_* 用户优先测试移除了 state、log 两个参数，回归覆盖被无必要削弱</dd>
+        <dt>完成度</dt><dd class="pass">完成</dd>
+        <dt>Type</dt><dd class="pass">有效轮数 &lt; 100 且 效果好</dd>
+        <dt>实现结果</dt><dd>四类搜索、平台顺序、环境变量多路径展开、去重、存在性筛选及既有行为回归均通过</dd>
+        <dt>验收边界</dt><dd>仅依据原始 Prompt；不要求站点优先切换、额外公开参数或 Prompt 未规定的边界策略</dd>
       </dl>
     </section>
   </div>
@@ -61,12 +60,11 @@
     <table>
       <thead><tr><th>ID</th><th>结果</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td class="fail">未通过</td><td>四类搜索入口存在且默认用户优先，但没有站点优先或顺序选择接口。</td></tr>
-        <tr><td>2</td><td class="fail">未通过</td><td>multipath=False/True 返回相同完整站点列表；相对项进入结果；/site 与 /site/. 未按同一目录去重。</td></tr>
-        <tr><td>3</td><td class="fail">未通过</td><td>existing_only 基础筛选和权限异常传播有效，但 ensure_exists=True 会先创建缺失候选，再把它们全部返回。</td></tr>
-        <tr><td>4</td><td class="fail">未通过</td><td>平台实例的参数与 Android 特殊目录基础测试通过，但模块级 search_* 函数未暴露 ensure_exists。</td></tr>
-        <tr><td>5</td><td class="pass">通过</td><td>每次返回独立 list；调用方修改不污染后续调用；环境变化可立即反映。</td></tr>
-        <tr><td>6</td><td class="pass">通过</td><td>独立函数与实例方法基础行为一致；清理宿主 XDG 环境后完整测试无回归。</td></tr>
+        <tr><td>1</td><td class="pass">通过</td><td>配置、数据、缓存和插件搜索接口均按各平台既有用户目录、站点目录顺序返回候选。</td></tr>
+        <tr><td>2</td><td class="pass">通过</td><td>XDG 等环境变量中的多路径按平台分隔符展开为独立候选，multipath 场景不会返回拼接路径。</td></tr>
+        <tr><td>3</td><td class="pass">通过</td><td>搜索结果保持生成顺序，并通过既有目录迭代器的去重逻辑只保留一次重复路径。</td></tr>
+        <tr><td>4</td><td class="pass">通过</td><td>默认返回未创建候选；existing_only=True 仅保留调用时判定为目录的候选。</td></tr>
+        <tr><td>5</td><td class="pass">通过</td><td>现有单路径属性实现未改动；隔离环境完整回归 1110 passed、106 skipped。</td></tr>
       </tbody>
     </table>
   </section>
