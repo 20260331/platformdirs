@@ -4,12 +4,45 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from typing import Literal
+
+
+class DirectoryStatus(Enum):
+    """Outcome of ensuring a single directory exists within a batch."""
+
+    CREATED = "created"
+    """The directory did not exist and was created by the call."""
+
+    EXISTED = "existed"
+    """The directory already existed (as a directory) before the call."""
+
+    FAILED = "failed"
+    """The directory could not be created; see :attr:`DirectoryCreationResult.error`."""
+
+    ROLLED_BACK = "rolled_back"
+    """The directory was created by the call, then removed again because rollback was requested and another directory
+    in the batch could not be created."""
+
+
+@dataclass(frozen=True)
+class DirectoryCreationResult:
+    """Outcome of ensuring a single directory exists within a batch."""
+
+    path: Path
+    """The directory that was requested."""
+
+    status: DirectoryStatus
+    """Whether the directory was created, already existed, failed, or was removed during rollback."""
+
+    error: OSError | None = None
+    """The operating-system error that made :attr:`status` :attr:`DirectoryStatus.FAILED`, otherwise ``None``."""
 
 
 class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
@@ -479,6 +512,113 @@ class PlatformDirsABC(ABC):  # ruff:ignore[too-many-public-methods]
         """:yield: all user and site runtime paths."""
         for path in self.iter_runtime_dirs():
             yield Path(path)
+
+    def ensure_directories_exist(  # ruff:ignore[no-self-use]
+        self,
+        paths: Iterable[str | os.PathLike[str]],
+        *,
+        rollback: bool = False,
+    ) -> list[DirectoryCreationResult]:
+        """Ensure that several directories exist, creating missing directories (and any missing parents) as needed.
+
+        Every requested path is attempted and reported independently, so one conflict or permission error does not
+        prevent the other directories from being prepared. Directories that already existed are never modified. This
+        method is safe to call concurrently from multiple threads or processes: a directory that another caller
+        creates in parallel is reported as :attr:`~DirectoryStatus.EXISTED`, not created twice.
+
+        :param paths: directories to ensure exist, given as strings or paths. Duplicate paths are handled once.
+        :param rollback: when ``True``, if any directory cannot be created, remove the empty directories this call
+            created, deepest first. Directories that already existed before the call, and created directories that
+            are no longer empty (e.g. another process populated them), are left untouched.
+        :returns: one :class:`DirectoryCreationResult` per distinct requested path, in request order.
+
+        """
+        results: list[DirectoryCreationResult] = []
+        created: list[Path] = []  # Directories this call created, oldest first (no duplicates).
+        seen: set[Path] = set()
+        any_failed = False
+        for requested in paths:
+            path = Path(requested)
+            if path in seen:  # A repeated path must not be reported as newly created on its second occurrence.
+                continue
+            seen.add(path)
+            try:
+                was_created = _create_directory_chain(path, created)
+            except OSError as exc:
+                # Parents created before the failure are already tracked in ``created``, so they are undone when
+                # rollback was requested.
+                results.append(DirectoryCreationResult(path=path, status=DirectoryStatus.FAILED, error=exc))
+                any_failed = True
+            else:
+                status = DirectoryStatus.CREATED if was_created else DirectoryStatus.EXISTED
+                results.append(DirectoryCreationResult(path=path, status=status))
+        if rollback and any_failed:
+            removed = _rollback_created(created)
+            results = [
+                (
+                    DirectoryCreationResult(path=result.path, status=DirectoryStatus.ROLLED_BACK)
+                    if result.status is DirectoryStatus.CREATED and result.path in removed
+                    else result
+                )
+                for result in results
+            ]
+        return results
+
+
+def _create_directory_chain(path: Path, created: list[Path]) -> bool:
+    """Create ``path`` and any missing parent directories, recording each directory this call creates in ``created``.
+
+    :returns: ``True`` when ``path`` itself was created by this call, ``False`` when it already existed as a directory.
+    :raises OSError: if ``path`` exists but is not a directory, an existing ancestor is not a directory (file
+        conflict), permissions prevent creation, or any other operating-system error occurs.
+
+    """
+    # Walk up only through missing nodes, then create top-down so parents exist before their children.
+    missing: list[Path] = []
+    node = path
+    while True:
+        if node.exists() or node.parent == node:
+            break
+        missing.append(node)
+        node = node.parent
+
+    leaf_created = False
+    for node in reversed(missing):
+        try:
+            node.mkdir()
+        except FileExistsError:
+            # A concurrent caller may have won the race: a directory is exactly what we wanted, whereas a file at
+            # this location is a conflict that must be reported.
+            if node.is_dir():
+                continue
+            raise
+        created.append(node)
+        if node == path:
+            leaf_created = True
+
+    if not leaf_created and not path.is_dir():
+        # The leaf existed before we scanned it (or appeared concurrently) and is not a directory: let mkdir raise
+        # the native conflict error instead of reporting an existing file as a directory.
+        path.mkdir()
+    return leaf_created
+
+
+def _rollback_created(created: list[Path]) -> set[Path]:
+    """Remove created directories deepest first using :meth:`~pathlib.Path.rmdir`; return the paths removed.
+
+    Only directories tracked as created by the batch are touched, and ``rmdir`` only removes empty directories, so
+    pre-existing directories and directories another process has populated are left in place. Removal errors are
+    ignored: leaving an empty directory behind on rollback is safer than raising while undoing a failed batch.
+
+    """
+    removed: set[Path] = set()
+    for path in reversed(created):
+        try:
+            path.rmdir()
+        except OSError:
+            continue
+        removed.add(path)
+    return removed
 
 
 def _unique(dirs: Iterable[str]) -> Iterator[str]:

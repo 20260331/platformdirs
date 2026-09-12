@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import builtins
+import errno
 import functools
 import inspect
+import os
 import sys
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import platformdirs
+from platformdirs import DirectoryCreationResult, DirectoryStatus
 from platformdirs.android import Android
 
 builtin_import = builtins.__import__
@@ -18,6 +22,8 @@ builtin_import = builtins.__import__
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
     from types import ModuleType
+
+    from pytest_mock import MockerFixture
 
 
 def test_package_metadata() -> None:
@@ -176,3 +182,312 @@ def test_iter_dirs_yields_user_before_site(kind: str) -> None:
     # docs/howto.rst merges config in reverse of this order so the user directory wins.
     dirs = platformdirs.PlatformDirs("MyApp", "MyCompany", version="1.0")
     assert next(getattr(dirs, f"iter_{kind}_dirs")()) == getattr(dirs, f"user_{kind}_dir")
+
+
+def _result(path: Path, status: DirectoryStatus, error: OSError | None = None) -> DirectoryCreationResult:
+    return DirectoryCreationResult(path=path, status=status, error=error)
+
+
+def test_ensure_directories_exist_creates_new_dirs_with_parents(tmp_path: Path) -> None:
+    first = tmp_path / "a"
+    second = tmp_path / "nested" / "b"
+    results = platformdirs.PlatformDirs().ensure_directories_exist([first, second])
+
+    assert results == [_result(first, DirectoryStatus.CREATED), _result(second, DirectoryStatus.CREATED)]
+    assert first.is_dir()
+    assert second.is_dir()
+    assert (tmp_path / "nested").is_dir()
+    assert all(result.error is None for result in results)
+
+
+def test_ensure_directories_exist_reports_preexisting_dirs(tmp_path: Path) -> None:
+    first = tmp_path / "a"
+    second = tmp_path / "b"
+    first.mkdir()
+    second.mkdir()
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([str(first), second])
+
+    assert results == [_result(first, DirectoryStatus.EXISTED), _result(second, DirectoryStatus.EXISTED)]
+    assert all(result.error is None for result in results)
+
+
+def test_ensure_directories_exist_preserves_order_and_accepts_strings(tmp_path: Path) -> None:
+    existing = tmp_path / "existing"
+    created = tmp_path / "created"
+    existing.mkdir()
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([str(created), str(existing)])
+
+    assert [result.path for result in results] == [created, existing]
+    assert [result.status for result in results] == [DirectoryStatus.CREATED, DirectoryStatus.EXISTED]
+
+
+def test_ensure_directories_exist_deduplicates_paths(tmp_path: Path) -> None:
+    target = tmp_path / "a"
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([target, target, str(target)])
+
+    assert results == [_result(target, DirectoryStatus.CREATED)]
+
+
+def test_ensure_directories_exist_accepts_empty_batch() -> None:
+    assert platformdirs.PlatformDirs().ensure_directories_exist(()) == []
+
+
+def test_ensure_directories_exist_reports_file_conflict(tmp_path: Path) -> None:
+    conflict = tmp_path / "a"
+    conflict.write_text("")
+    unaffected = tmp_path / "b"
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([conflict, unaffected])
+
+    assert len(results) == 2
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, FileExistsError)
+    assert results[0].error is not None
+    assert results[0].error.errno == errno.EEXIST
+    assert results[1] == _result(unaffected, DirectoryStatus.CREATED)
+    assert conflict.is_file()  # the conflicting file is untouched
+
+
+def test_ensure_directories_exist_reports_file_conflict_in_parent(tmp_path: Path) -> None:
+    blocker = tmp_path / "blocker"
+    blocker.write_text("")
+    target = blocker / "nested"
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([target])
+
+    assert len(results) == 1
+    assert results[0].path == target
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, OSError)
+    assert not target.exists()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the read-only permission bit does not block creation on Windows")
+def test_ensure_directories_exist_reports_permission_error(tmp_path: Path) -> None:
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        pytest.skip("root bypasses directory permission checks")
+    readonly = tmp_path / "readonly"
+    readonly.mkdir()
+    readonly.chmod(0o555)
+    target = readonly / "nested"
+
+    try:
+        results = platformdirs.PlatformDirs().ensure_directories_exist([target])
+    finally:
+        readonly.chmod(0o755)
+
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, PermissionError)
+    assert not target.exists()
+
+
+def test_ensure_directories_exist_continues_after_failure_without_rollback(tmp_path: Path) -> None:
+    first = tmp_path / "a"
+    conflict = tmp_path / "blocker"
+    conflict.write_text("")
+    third = tmp_path / "c"
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([first, conflict, third])
+
+    assert [result.status for result in results] == [
+        DirectoryStatus.CREATED,
+        DirectoryStatus.FAILED,
+        DirectoryStatus.CREATED,
+    ]
+    assert first.is_dir()
+    assert third.is_dir()
+
+
+def test_ensure_directories_exist_rollback_removes_only_created_dirs(tmp_path: Path) -> None:
+    created_first = tmp_path / "a"
+    preexisting = tmp_path / "existing"
+    preexisting.mkdir()
+    marker = preexisting / "keep-me"
+    marker.write_text("")
+    created_second = tmp_path / "b"
+    conflict = tmp_path / "blocker"
+    conflict.write_text("")
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist(
+        [created_first, preexisting, created_second, conflict],
+        rollback=True,
+    )
+
+    by_path = {result.path: result for result in results}
+    assert by_path[created_first].status is DirectoryStatus.ROLLED_BACK
+    assert by_path[preexisting].status is DirectoryStatus.EXISTED
+    assert by_path[created_second].status is DirectoryStatus.ROLLED_BACK
+    assert by_path[conflict].status is DirectoryStatus.FAILED
+    assert not created_first.exists()
+    assert not created_second.exists()
+    assert preexisting.is_dir()  # pre-existing directories must survive rollback...
+    assert marker.is_file()  # ...along with everything they contain
+
+
+def test_ensure_directories_exist_rollback_removes_created_parent_chain(tmp_path: Path) -> None:
+    preexisting_base = tmp_path / "base"
+    preexisting_base.mkdir()
+    marker = preexisting_base / "keep-me"
+    marker.write_text("")
+    under_existing = preexisting_base / "new" / "nested"
+    brand_new_base = tmp_path / "root" / "x" / "y"
+    conflict = tmp_path / "blocker"
+    conflict.write_text("")
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist(
+        [under_existing, brand_new_base, conflict],
+        rollback=True,
+    )
+
+    by_path = {result.path: result for result in results}
+    assert by_path[under_existing].status is DirectoryStatus.ROLLED_BACK
+    assert by_path[brand_new_base].status is DirectoryStatus.ROLLED_BACK
+    assert by_path[conflict].status is DirectoryStatus.FAILED
+    assert not (preexisting_base / "new").exists()
+    assert preexisting_base.is_dir()
+    assert marker.is_file()
+    assert not (tmp_path / "root").exists()
+
+
+def test_ensure_directories_exist_rollback_without_failure_keeps_dirs(tmp_path: Path) -> None:
+    first = tmp_path / "a"
+    second = tmp_path / "b"
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([first, second], rollback=True)
+
+    assert [result.status for result in results] == [DirectoryStatus.CREATED, DirectoryStatus.CREATED]
+    assert first.is_dir()
+    assert second.is_dir()
+
+
+def test_ensure_directories_exist_rollback_leaves_nonempty_created_dir(tmp_path: Path, mocker: MockerFixture) -> None:
+    first = tmp_path / "a"
+    second = tmp_path / "b"
+    conflict = tmp_path / "blocker"
+    conflict.write_text("")
+    real_rmdir = Path.rmdir
+
+    def fake_rmdir(self: Path) -> None:
+        if self == first:  # Simulate another process filling the directory before rollback.
+            raise OSError(errno.ENOTEMPTY, "simulated")
+        real_rmdir(self)
+
+    mocker.patch.object(Path, "rmdir", new=fake_rmdir)
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([first, second, conflict], rollback=True)
+
+    by_path = {result.path: result for result in results}
+    assert by_path[first].status is DirectoryStatus.CREATED  # best effort: non-empty directory is left behind
+    assert by_path[second].status is DirectoryStatus.ROLLED_BACK
+    assert by_path[conflict].status is DirectoryStatus.FAILED
+    assert first.is_dir()
+    assert not second.exists()
+
+
+def test_ensure_directories_exist_rollback_undoes_parents_created_before_failure(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    new_parent = tmp_path / "new-parent"
+    target = new_parent / "leaf"
+    real_mkdir = Path.mkdir
+
+    def fake_mkdir(self: Path, mode: int = 0o777, parents: bool = False, exist_ok: bool = False) -> None:
+        if self == target:  # Simulate a file appearing at the leaf while we create the parents.
+            raise FileExistsError(errno.EEXIST, "simulated")
+        real_mkdir(self, mode, parents, exist_ok)
+
+    mocker.patch.object(Path, "mkdir", new=fake_mkdir)
+    mocker.patch.object(Path, "is_dir", return_value=False)
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([target], rollback=True)
+
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, FileExistsError)
+    assert not new_parent.exists()  # the parent created just before the failure is rolled back too
+
+
+def test_ensure_directories_exist_handles_concurrent_creator_directory(tmp_path: Path, mocker: MockerFixture) -> None:
+    target = tmp_path / "a"
+    real_exists = Path.exists
+
+    def fake_exists(self: Path) -> bool:
+        if self == target:
+            return False  # we observe the leaf as missing, then lose the creation race
+        return real_exists(self)
+
+    mocker.patch.object(Path, "exists", new=fake_exists)
+    mocker.patch.object(Path, "mkdir", side_effect=FileExistsError(errno.EEXIST, "simulated"))
+    mocker.patch.object(Path, "is_dir", return_value=True)  # the winner created a directory
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([target])
+
+    assert results == [_result(target, DirectoryStatus.EXISTED)]
+
+
+def test_ensure_directories_exist_handles_concurrent_creator_file(tmp_path: Path, mocker: MockerFixture) -> None:
+    target = tmp_path / "a"
+    real_exists = Path.exists
+
+    def fake_exists(self: Path) -> bool:
+        if self == target:
+            return False  # we observe the leaf as missing, then a file appears there
+        return real_exists(self)
+
+    mocker.patch.object(Path, "exists", new=fake_exists)
+    mocker.patch.object(Path, "mkdir", side_effect=FileExistsError(errno.EEXIST, "simulated"))
+    mocker.patch.object(Path, "is_dir", return_value=False)  # the winner created a file
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([target])
+
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, FileExistsError)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX style filesystem root used in the scan")
+def test_ensure_directories_exist_when_no_ancestor_exists(mocker: MockerFixture) -> None:
+    mocker.patch.object(Path, "exists", return_value=False)
+
+    results = platformdirs.PlatformDirs().ensure_directories_exist([Path("/this-root-does-not-exist/sub")])
+
+    assert results[0].status is DirectoryStatus.FAILED
+    assert isinstance(results[0].error, OSError)
+
+
+def test_ensure_directories_exist_is_safe_across_threads(tmp_path: Path) -> None:
+    targets = [tmp_path / name for name in ("a", "b", "c")]
+    dirs = platformdirs.PlatformDirs()
+    outcomes: list[DirectoryCreationResult] = []
+    outcomes_lock = threading.Lock()
+    worker_count = 8
+    barrier = threading.Barrier(worker_count)
+
+    def worker() -> None:
+        barrier.wait()
+        results = dirs.ensure_directories_exist(targets)
+        with outcomes_lock:
+            outcomes.extend(results)
+
+    threads = [threading.Thread(target=worker) for _ in range(worker_count)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    for target in targets:
+        matching = [result for result in outcomes if result.path == target]
+        assert len(matching) == worker_count
+        assert sum(result.status is DirectoryStatus.CREATED for result in matching) == 1
+        assert all(result.status in {DirectoryStatus.CREATED, DirectoryStatus.EXISTED} for result in matching)
+        assert target.is_dir()
+
+
+def test_ensure_directories_exist_module_function(tmp_path: Path) -> None:
+    target = tmp_path / "a"
+
+    results = platformdirs.ensure_directories_exist([target])
+
+    assert results == [_result(target, DirectoryStatus.CREATED)]
+    assert target.is_dir()

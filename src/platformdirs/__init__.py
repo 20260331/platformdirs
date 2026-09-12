@@ -13,11 +13,12 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from .api import PlatformDirsABC
+from .api import DirectoryCreationResult, DirectoryStatus, PlatformDirsABC
 from .version import __version__
 from .version import __version_tuple__ as __version_info__
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from pathlib import Path
     from typing import Literal
 
@@ -50,6 +51,27 @@ if TYPE_CHECKING:
 else:
     PlatformDirs = _set_platform_dir_class()  #: Currently active platform
 AppDirs = PlatformDirs  #: Backwards compatibility with appdirs
+
+
+def ensure_directories_exist(
+    paths: Iterable[str | os.PathLike[str]],
+    *,
+    rollback: bool = False,
+) -> list[DirectoryCreationResult]:
+    """Ensure that several directories exist, creating missing directories (and any missing parents) as needed.
+
+    Each requested path is reported independently as :class:`DirectoryCreationResult` with a
+    :class:`DirectoryStatus` of ``created``, ``existed``, ``failed``, or (when rolled back) ``rolled_back``. This is
+    a convenience wrapper around :meth:`PlatformDirsABC.ensure_directories_exist` for paths that do not depend on the
+    platform-specific configuration of a :class:`PlatformDirs` instance.
+
+    :param paths: directories to ensure exist, given as strings or paths. Duplicate paths are handled once.
+    :param rollback: when ``True``, remove the empty directories this call created if any directory cannot be
+        created; directories that already existed before the call are never removed.
+    :returns: one :class:`DirectoryCreationResult` per distinct requested path, in request order.
+
+    """
+    return PlatformDirs().ensure_directories_exist(paths, rollback=rollback)
 
 
 def user_data_dir(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
@@ -974,10 +996,13 @@ def site_runtime_path(
 
 __all__ = [
     "AppDirs",
+    "DirectoryCreationResult",
+    "DirectoryStatus",
     "PlatformDirs",
     "PlatformDirsABC",
     "__version__",
     "__version_info__",
+    "ensure_directories_exist",
     "site_applications_dir",
     "site_applications_path",
     "site_bin_dir",

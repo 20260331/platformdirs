@@ -290,6 +290,42 @@ sources` for a practical example. The most specific directory comes first, and e
 
 See :class:`~platformdirs.api.PlatformDirsABC` for the full method documentation.
 
+***************************
+ Batch directory creation
+***************************
+
+Prepare several directories at once — for example the data, cache, and log directories of an application — and learn
+for every requested path whether it was newly created, already existed, or could not be created. The same method is
+available both as :meth:`~platformdirs.api.PlatformDirsABC.ensure_directories_exist` on a :class:`~platformdirs.
+PlatformDirs` instance and as a module-level function for arbitrary paths:
+
+.. code-block:: python
+
+    from platformdirs import DirectoryStatus, PlatformDirs
+
+    dirs = PlatformDirs("MyApp")
+    results = dirs.ensure_directories_exist(
+        [dirs.user_data_dir, dirs.user_cache_dir, dirs.user_log_dir],
+        rollback=True,
+    )
+    for result in results:
+        if result.status is DirectoryStatus.FAILED:
+            ...  # inspect result.error, e.g. a permission or file-conflict error
+
+Each path is attempted independently, so one failure does not block the others. Concurrent callers are handled
+safely: a directory another process or thread creates in parallel is reported as already existing, never created
+twice. With ``rollback=True`` the directories the call itself created are removed again when any directory fails;
+directories that existed before the call, and created directories that are no longer empty, are always left in
+place.
+
+.. autofunction:: platformdirs.ensure_directories_exist
+
+.. autoclass:: platformdirs.api.DirectoryStatus
+    :members:
+
+.. autoclass:: platformdirs.api.DirectoryCreationResult
+    :members:
+
 *************************
  Backwards compatibility
 *************************
