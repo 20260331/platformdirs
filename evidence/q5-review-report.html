@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>platformdirs q5 审核证据</title>
+  <style>
+    :root { color-scheme: light; --ink: #17202a; --muted: #52606d; --line: #d9e2ec; --bg: #f4f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+    main { width: min(1180px, calc(100% - 40px)); margin: 28px auto; }
+    h1 { margin: 0 0 5px; font-size: 29px; letter-spacing: 0; }
+    h2 { margin: 0 0 11px; font-size: 19px; letter-spacing: 0; }
+    .meta { color: var(--muted); margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    section { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+    section + section.full, .full { margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { border-bottom: 1px solid #edf2f7; padding: 7px 4px; vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child { width: 25%; color: var(--muted); }
+    .rubrics td:first-child { width: 7%; }
+    .rubrics td:nth-child(2) { width: 11%; }
+    .pass { color: #087f5b; font-weight: 700; }
+    .fail { color: #b42318; font-weight: 700; }
+    pre { margin: 0; background: #101820; color: #e7eef5; padding: 13px; border-radius: 6px; white-space: pre-wrap; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>platformdirs q5 无副作用目录查询 CLI 审核证据</h1>
+  <div class="meta">基线 e0847a69cafd0f2534270980a269c4e07f449e1e · 分支 swe/q5-readonly-query-cli · 有效轮数 53</div>
+  <div class="grid">
+    <section>
+      <h2>验证结果</h2>
+      <table>
+        <tr><td>专项测试</td><td class="pass">12 passed</td></tr>
+        <tr><td>完整回归</td><td class="pass">1075 passed, 106 skipped</td></tr>
+        <tr><td>质量检查</td><td class="pass">Ruff、格式、改动文件类型检查、git diff --check 均通过</td></tr>
+        <tr><td>环境说明</td><td>首次回归因宿主 XDG_DATA_DIRS / XDG_CONFIG_DIRS 非默认值出现 11 项失败；清除后全部通过。</td></tr>
+      </table>
+    </section>
+    <section>
+      <h2>功能结论</h2>
+      <table>
+        <tr><td>Type</td><td class="pass">有效轮数 &lt; 100 且 效果好</td></tr>
+        <tr><td>完成度</td><td class="pass">完成</td></tr>
+        <tr><td>已实现</td><td>单属性或完整集合查询；appname、appauthor、version；text/json；默认只读；无效属性和平台不支持错误。</td></tr>
+        <tr><td>工程缺口</td><td>用户可见 CLI 已改变，但没有按 CONTRIBUTING.md 更新相关 .rst 文档；不影响 Prompt 功能完成度。</td></tr>
+      </table>
+    </section>
+  </div>
+  <section class="full">
+    <h2>逐条 Rubric 判定</h2>
+    <table class="rubrics">
+      <tr><td>1</td><td class="pass">通过</td><td>可选择一个目录属性；未指定属性时按固定 PROPS 顺序输出完整集合。</td></tr>
+      <tr><td>2</td><td class="pass">通过</td><td>appname、appauthor、version 均传递给统一 API，且结果与直接 API 一致。</td></tr>
+      <tr><td>3</td><td class="pass">通过</td><td>支持 text 和 json；JSON 使用稳定属性名与固定顺序，输出内容可重复解析。</td></tr>
+      <tr><td>4</td><td class="pass">通过</td><td>ensure_exists 固定为 False；临时 HOME 查询后未创建目录，进程环境保持不变。</td></tr>
+      <tr><td>5</td><td class="pass">通过</td><td>无效参数使用 argparse 退出码 2；平台不支持使用独立错误信息和退出码 3。</td></tr>
+      <tr><td>6</td><td class="pass">通过</td><td>完整回归通过；直接导入 API 与版本信息未改，模块可从不同工作目录运行。</td></tr>
+    </table>
+  </section>
+  <section class="full">
+    <h2>可复核命令</h2>
+    <pre>cd repo/platformdirs-swe/worktrees/q5-readonly-query-cli
+PYTHONPATH=src python3 -m pytest tests/test_main.py -q
+env -u XDG_DATA_DIRS -u XDG_CONFIG_DIRS PYTHONPATH=/tmp/platformdirs-q5-deps:src python3 -m pytest -q
+ruff check src/platformdirs/__main__.py tests/test_main.py
+ruff format --check src/platformdirs/__main__.py tests/test_main.py</pre>
+  </section>
+</main>
+</body>
+</html>
